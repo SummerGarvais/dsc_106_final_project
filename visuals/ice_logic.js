@@ -19,7 +19,7 @@ function initializeSeaIceCanvas() {
     canvas.style.border = '1px solid #ddd';
     canvas.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
 
-    const vizDiv = document.getElementById('ice-visualization');
+    const vizDiv = document.getElementById('sea-ice-visualization');
     if (vizDiv) {
         vizDiv.innerHTML = '';
         vizDiv.appendChild(canvas);
