@@ -1,0 +1,124 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: pink;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #7f8c8d;
+    margin-bottom: 30px;
+}
+
+.control-panel {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    justify-content: center;
+    align-items: center;
+
+    text-align: center;
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.slider {
+    margin: 0 15px;
+    cursor: pointer;
+}
+
+.slider-label {
+    font-size: 18px;
+    font-weight: bold;
+    color: #2c3e50;
+    background-color: #ecf0f1;
+    padding: 5px 12px;
+    border-radius: 5px;
+    display: inline-block;
+    min-width: 60px;
+}
+
+label {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.visualization {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+canvas {
+    border: 1px solid #ddd;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.colorbar {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.colorbar-gradient {
+    width: 300px;
+    height: 20px;
+    margin: 0 10px;
+    border: 1px solid #ddd;
+}
+
+.display {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    font-family: monospace;
+}
+
+.loading {
+    text-align: center;
+    padding: 50px;
+    font-size: 18px;
+    color: #7f8c8d;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+.loading::after {
+    content: '...';
+    animation: pulse 1.5s infinite;
+}
+
+.tooltip{
+    visibility: hidden; /* start off hidden, made visible later */
+    position: relative;
+    pointer-events: none;
+    display: inline-block;
+    width: auto;
+    background-color: rgba(0,0,0,0.8);
+    color: white;
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: monospace;
+    z-index: 420;
+}
