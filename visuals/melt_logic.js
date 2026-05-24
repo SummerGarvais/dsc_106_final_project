@@ -1,6 +1,4 @@
 // Global variables
-let currentYear = 1850;
-let currentMonth = 1;
 let currentData = null;
 let width = 1200;
 let height = 800;
