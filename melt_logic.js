@@ -102,7 +102,7 @@ async function loadNewMeltData() {
         }
 
         // Show error on canvas
-        const canvas = document.getElementById('melt-meltCanvas');
+        const canvas = document.getElementById('melt-canvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#f0f0f0';

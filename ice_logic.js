@@ -88,7 +88,7 @@ async function loadNewIceData() {
         }
 
         // Show error on canvas
-        const canvas = document.getElementById('melt-meltCanvas');
+        const canvas = document.getElementById('ice-canvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#f0f0f0';
