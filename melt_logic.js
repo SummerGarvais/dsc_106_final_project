@@ -21,8 +21,6 @@ const colors = [
 // Initialize all viz elements when the page loads
 document.addEventListener('DOMContentLoaded', function () {
     initializeSeaMeltCanvas();
-    setupYearSlider();
-    setupMonthSlider();
     loadRememberedYear();
 });
 
@@ -67,64 +65,12 @@ function initializeSeaMeltCanvas() {
     createColorbar();
 }
 
-function setupYearSlider() {
-    const slider = document.getElementById('melt-year-slider');
-    const yearDisplay = document.getElementById('melt-year-value');
+async function loadNewMeltData() {
+    const yearSlider = document.getElementById('year-slider');
+    const monthSlider = document.getElementById('month-slider');
+    const currentYear = parseInt(yearSlider.value);
+    const currentMonth = parseInt(monthSlider.value);
 
-    // Update as you drag
-    slider.addEventListener('input', (event) => {
-        currentYear = parseInt(event.target.value);
-        yearDisplay.textContent = currentYear; // update year selection label
-        loadNewData(); // update map
-    });
-
-    slider.setAttribute('list', 'decades');
-
-    const datalist = document.createElement('datalist');
-    datalist.id = 'decades';
-
-    const years = [1850, 1860, 1870, 1880, 1890, 1900, 1910, 1920,
-        1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000];
-
-    years.forEach(year => {
-        const option = document.createElement('option');
-        option.value = year;
-        option.label = year;
-        datalist.appendChild(option);
-    });
-
-    document.body.appendChild(datalist);
-}
-
-function setupMonthSlider() {
-    const slider = document.getElementById('melt-month-slider');
-    const monthDisplay = document.getElementById('melt-month-value');
-
-    // Update as you drag
-    slider.addEventListener('input', (event) => {
-        currentMonth = parseInt(event.target.value);
-        monthDisplay.textContent = currentMonth; // update month selection label
-        loadNewData(); // update map
-    });
-
-    slider.setAttribute('list', 'months');
-
-    const datalist = document.createElement('datalist');
-    datalist.id = 'months';
-
-    const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-
-    months.forEach(month => {
-        const option = document.createElement('option');
-        option.value = month;
-        option.label = month;
-        datalist.appendChild(option);
-    });
-
-    document.body.appendChild(datalist);
-}
-
-async function loadNewData() {
     // Show loading state
     const overallStatsDiv = document.getElementById('melt-overall-stats');
     if (overallStatsDiv) {
@@ -171,13 +117,13 @@ async function loadNewData() {
 // Sliders will remember their values between refreshes, 
 // so load them in to make all other elements match
 function loadRememberedYear() {
-    const yearSlider = document.getElementById('melt-year-slider');
-    const yearDisplay = document.getElementById('melt-year-value');
+    const yearSlider = document.getElementById('year-slider');
+    const yearDisplay = document.getElementById('year-value');
     currentYear = parseInt(yearSlider.value); // Get the year slider's current value
     yearDisplay.textContent = currentYear; // Update display to match
 
-    const monthSlider = document.getElementById('melt-month-slider');
-    const monthDisplay = document.getElementById('melt-month-value');
+    const monthSlider = document.getElementById('month-slider');
+    const monthDisplay = document.getElementById('month-value');
     currentMonth = parseInt(monthSlider.value); // Get the month slider's current value
     monthDisplay.textContent = currentMonth; // Update display to match
     loadNewData(); // Load data for that year and month

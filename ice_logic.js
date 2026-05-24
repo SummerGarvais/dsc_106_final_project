@@ -1,6 +1,4 @@
 // Global variables
-let currentYear = 1850;
-let currentData = null;
 let width = 1200;
 let height = 800;
 let colorScale = null;
@@ -8,7 +6,6 @@ let colorScale = null;
 // Initialize all viz elements when the page loads
 document.addEventListener('DOMContentLoaded', function () {
     initializeSeaIceCanvas();
-    setupYearSlider();
     loadRememberedYear();
 });
 
@@ -54,84 +51,59 @@ function initializeSeaIceCanvas() {
     createColorbar();
 }
 
-function setupYearSlider() {
-    const slider = document.getElementById('ice-year-slider');
-    const yearDisplay = document.getElementById('ice-year-value');
+async function loadNewIceData() {
+    const yearSlider = document.getElementById('year-slider');
+    const monthSlider = document.getElementById('month-slider');
+    const currentYear = parseInt(yearSlider.value);
+    const currentMonth = parseInt(monthSlider.value);
 
-    // Update as you drag
-    slider.addEventListener('input', (event) => {
-        const year = parseInt(event.target.value);
-        yearDisplay.textContent = year; // update year selection label
-        loadYear(year); // update map
-    });
-
-    slider.setAttribute('list', 'decades');
-
-    const datalist = document.createElement('datalist');
-    datalist.id = 'decades';
-
-    const years = [1850, 1860, 1870, 1880, 1890, 1900, 1910, 1920,
-        1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000];
-
-    years.forEach(year => {
-        const option = document.createElement('option');
-        option.value = year;
-        option.label = year;
-        datalist.appendChild(option);
-    });
-
-    document.body.appendChild(datalist);
-}
-
-async function loadYear(year) {
     // Show loading state
     const overallStatsDiv = document.getElementById('ice-overall-stats');
-    console.log(overallStatsDiv)
     if (overallStatsDiv) {
-        overallStatsDiv.innerHTML = '📡 Loading sea ice data for ' + year + '...';
+        overallStatsDiv.innerHTML = '📡 Loading sea ice data for ' + currentYear + ', ' + currentMonth + '...';
     }
 
     try {
         // Fetch the JSON file for this specific year
-        const response = await fetch(`./data/sea_ice_${year}.json`);
+        const response = await fetch(`./data/sea_ice_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const yearData = await response.json();
+        const newData = await response.json();
         // Update global variable with currently used dataset
-        currentData = yearData; 
+        currentData = newData;
 
         // Update the visualization
-        updateVisualization(yearData);
+        updateVisualization(newData);
 
         // Update statistics
-        updateOverallStats(yearData);
+        updateOverallStats(newData);
 
     } catch (error) {
-        console.error(`Error loading data for ${year}:`, error);
+        console.error(`Error loading data for ${currentYear}:`, error);
         if (overallStatsDiv) {
-            overallStatsDiv.innerHTML = `❌ Error loading data for ${year}. Make sure sea_ice_${year}.json exists.`;
+            overallStatsDiv.innerHTML = `❌ Error loading data for ${currentYear}, ${currentMonth}. Make sure sea_ice_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json exists.`;
         }
 
         // Show error on canvas
-        const canvas = document.getElementById('ice-canvas');
+        const canvas = document.getElementById('melt-meltCanvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#f0f0f0';
             ctx.fillRect(0, 0, width, height);
             ctx.fillStyle = '#ff0000';
             ctx.font = '16px Arial';
-            ctx.fillText(`Failed to load data for ${year}`, width / 2 - 150, height / 2);
+            ctx.fillText(`Failed to load data for ${currentYear}, ${currentMonth}`, width / 2 - 150, height / 2);
         }
     }
 }
 
 // Slider will remember its year between refreshes, so load it in to make all other elements match!
 function loadRememberedYear() {
-    const slider = document.getElementById('ice-year-slider');
-    const yearDisplay = document.getElementById('ice-year-value');
+    const slider = document.getElementById('year-slider');
+    const yearDisplay = document.getElementById('year-value');
     const initialYear = parseInt(slider.value); // Get the slider's current value
     yearDisplay.textContent = initialYear; // Update display to match
     loadYear(initialYear); // Load data for that year
