@@ -10,30 +10,19 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeSeaIceCanvas();
     setupYearSlider();
     loadRememberedYear();
-
-    setupEasterEgg();
 });
-
-function setupEasterEgg() {
-    const body = document.querySelector('body');
-    body.addEventListener('click', (event) => {
-        if (event.target === document.body) {
-            body.style.backgroundImage = "url('./assets/rick-roll-rick-ashley.gif')";
-        }
-    });
-}
 
 function initializeSeaIceCanvas() {
     // Create canvas
     const canvas = document.createElement('canvas');
-    canvas.id = 'iceCanvas';
+    canvas.id = 'ice-canvas';
     canvas.width = width;
     canvas.height = height;
     canvas.style.cursor = 'crosshair';
     canvas.style.border = '1px solid #ddd';
     canvas.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
 
-    const vizDiv = document.getElementById('visualization');
+    const vizDiv = document.getElementById('ice-visualization');
     if (vizDiv) {
         vizDiv.innerHTML = '';
         vizDiv.appendChild(canvas);
@@ -46,7 +35,7 @@ function initializeSeaIceCanvas() {
         tooltip.style.visibility = 'hidden';
         console.log("hiding tooltip");
 
-        const pointStatsDiv = document.getElementById('point-stats');
+        const pointStatsDiv = document.getElementById('ice-point-stats');
         if (pointStatsDiv) {
             pointStatsDiv.innerHTML = `
                 📍 <strong>Location:</strong> No Data | 
@@ -66,8 +55,8 @@ function initializeSeaIceCanvas() {
 }
 
 function setupYearSlider() {
-    const slider = document.getElementById('yearSlider');
-    const yearDisplay = document.getElementById('yearValue');
+    const slider = document.getElementById('ice-year-slider');
+    const yearDisplay = document.getElementById('ice-year-value');
 
     // Update as you drag
     slider.addEventListener('input', (event) => {
@@ -96,7 +85,7 @@ function setupYearSlider() {
 
 async function loadYear(year) {
     // Show loading state
-    const overallStatsDiv = document.getElementById('overall-stats');
+    const overallStatsDiv = document.getElementById('ice-overall-stats');
     console.log(overallStatsDiv)
     if (overallStatsDiv) {
         overallStatsDiv.innerHTML = '📡 Loading sea ice data for ' + year + '...';
@@ -127,7 +116,7 @@ async function loadYear(year) {
         }
 
         // Show error on canvas
-        const canvas = document.getElementById('iceCanvas');
+        const canvas = document.getElementById('ice-canvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#f0f0f0';
@@ -141,8 +130,8 @@ async function loadYear(year) {
 
 // Slider will remember its year between refreshes, so load it in to make all other elements match!
 function loadRememberedYear() {
-    const slider = document.getElementById('yearSlider');
-    const yearDisplay = document.getElementById('yearValue');
+    const slider = document.getElementById('ice-year-slider');
+    const yearDisplay = document.getElementById('ice-year-value');
     const initialYear = parseInt(slider.value); // Get the slider's current value
     yearDisplay.textContent = initialYear; // Update display to match
     loadYear(initialYear); // Load data for that year
@@ -150,7 +139,7 @@ function loadRememberedYear() {
 
 // Updates canvas with sea ice data
 function updateVisualization(data) {
-    const canvas = document.getElementById('iceCanvas');
+    const canvas = document.getElementById('ice-canvas');
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
@@ -257,7 +246,7 @@ function updateVisualization(data) {
 // Update stats for that year at the bottom of the page
 function updateOverallStats(data) {
     const thicknessData = data.data;
-    const overallStatsDiv = document.getElementById('overall-stats');
+    const overallStatsDiv = document.getElementById('ice-overall-stats');
     console.log(overallStatsDiv)
 
     if (!overallStatsDiv || !thicknessData) return;
@@ -297,7 +286,7 @@ function updateOverallStats(data) {
 function handleMouseMove(event) {
     if (!currentData) return;
 
-    const canvas = document.getElementById('iceCanvas');
+    const canvas = document.getElementById('ice-canvas');
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -352,7 +341,7 @@ function updateToolTip(event, iceDepth) {
 
 function updatePointStats(i, j, iceDepth) {
     // Update point stats at bottom of the document with data of cell being hovered over
-    const pointStatsDiv = document.getElementById('point-stats');
+    const pointStatsDiv = document.getElementById('ice-point-stats');
     if (!pointStatsDiv) return;
 
     if (iceDepth !== null && !isNaN(iceDepth) && iceDepth > 0) {
@@ -371,7 +360,7 @@ function updatePointStats(i, j, iceDepth) {
 }
 
 function createColorbar() {
-    const colorbarDiv = document.getElementById('colorbar');
+    const colorbarDiv = document.getElementById('ice-colorbar');
     if (!colorbarDiv) return;
 
     colorbarDiv.innerHTML = '';

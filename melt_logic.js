@@ -24,30 +24,19 @@ document.addEventListener('DOMContentLoaded', function () {
     setupYearSlider();
     setupMonthSlider();
     loadRememberedYear();
-
-    setupEasterEgg();
 });
-
-function setupEasterEgg() {
-    const body = document.querySelector('body');
-    body.addEventListener('click', (event) => {
-        if (event.target === document.body) {
-            body.style.backgroundImage = "url('./assets/rick-roll-rick-ashley.gif')";
-        }
-    });
-}
 
 function initializeSeaMeltCanvas() {
     // Create canvas
     const canvas = document.createElement('canvas');
-    canvas.id = 'meltCanvas';
+    canvas.id = 'melt-canvas';
     canvas.width = width;
     canvas.height = height;
     canvas.style.cursor = 'crosshair';
     canvas.style.border = '1px solid #ddd';
     canvas.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
 
-    const vizDiv = document.getElementById('visualization');
+    const vizDiv = document.getElementById('melt-visualization');
     if (vizDiv) {
         vizDiv.innerHTML = '';
         vizDiv.appendChild(canvas);
@@ -59,7 +48,7 @@ function initializeSeaMeltCanvas() {
         const tooltip = document.querySelector(".tooltip");
         tooltip.style.visibility = 'hidden';
 
-        const pointStatsDiv = document.getElementById('point-stats');
+        const pointStatsDiv = document.getElementById('melt-point-stats');
         if (pointStatsDiv) {
             pointStatsDiv.innerHTML = `
                 📍 <strong>Location:</strong> No Data | 
@@ -79,8 +68,8 @@ function initializeSeaMeltCanvas() {
 }
 
 function setupYearSlider() {
-    const slider = document.getElementById('yearSlider');
-    const yearDisplay = document.getElementById('yearValue');
+    const slider = document.getElementById('melt-year-slider');
+    const yearDisplay = document.getElementById('melt-year-value');
 
     // Update as you drag
     slider.addEventListener('input', (event) => {
@@ -108,8 +97,8 @@ function setupYearSlider() {
 }
 
 function setupMonthSlider() {
-    const slider = document.getElementById('monthSlider');
-    const monthDisplay = document.getElementById('monthValue');
+    const slider = document.getElementById('melt-month-slider');
+    const monthDisplay = document.getElementById('melt-month-value');
 
     // Update as you drag
     slider.addEventListener('input', (event) => {
@@ -137,7 +126,7 @@ function setupMonthSlider() {
 
 async function loadNewData() {
     // Show loading state
-    const overallStatsDiv = document.getElementById('overall-stats');
+    const overallStatsDiv = document.getElementById('melt-overall-stats');
     if (overallStatsDiv) {
         overallStatsDiv.innerHTML = '📡 Loading sea ice flux data for ' + currentYear + ', ' + currentMonth + '...';
     }
@@ -167,7 +156,7 @@ async function loadNewData() {
         }
 
         // Show error on canvas
-        const canvas = document.getElementById('meltCanvas');
+        const canvas = document.getElementById('melt-meltCanvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#f0f0f0';
@@ -182,13 +171,13 @@ async function loadNewData() {
 // Sliders will remember their values between refreshes, 
 // so load them in to make all other elements match
 function loadRememberedYear() {
-    const yearSlider = document.getElementById('yearSlider');
-    const yearDisplay = document.getElementById('yearValue');
+    const yearSlider = document.getElementById('melt-year-slider');
+    const yearDisplay = document.getElementById('melt-year-value');
     currentYear = parseInt(yearSlider.value); // Get the year slider's current value
     yearDisplay.textContent = currentYear; // Update display to match
 
-    const monthSlider = document.getElementById('monthSlider');
-    const monthDisplay = document.getElementById('monthValue');
+    const monthSlider = document.getElementById('melt-month-slider');
+    const monthDisplay = document.getElementById('melt-month-value');
     currentMonth = parseInt(monthSlider.value); // Get the month slider's current value
     monthDisplay.textContent = currentMonth; // Update display to match
     loadNewData(); // Load data for that year and month
@@ -196,7 +185,7 @@ function loadRememberedYear() {
 
 // Updates canvas with sea ice melt data
 function updateVisualization(data) {
-    const canvas = document.getElementById('meltCanvas');
+    const canvas = document.getElementById('melt-meltCanvas');
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
@@ -316,7 +305,7 @@ ctx.fillText('Thicker', miniBarX + miniBarWidth - 30, miniBarY - 2);
 // Update stats for that year at the bottom of the page
 function updateOverallStats(data) {
     const fluxData = data.data;
-    const overallStatsDiv = document.getElementById('overall-stats');
+    const overallStatsDiv = document.getElementById('melt-overall-stats');
 
     if (!overallStatsDiv || !fluxData) return;
 
@@ -350,7 +339,7 @@ function updateOverallStats(data) {
 function handleMouseMove(event) {
     if (!currentData) return;
 
-    const canvas = document.getElementById('meltCanvas');
+    const canvas = document.getElementById('melt-meltCanvas');
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -404,7 +393,7 @@ function updateToolTip(event, meltFlux) {
 
 function updatePointStats(i, j, meltFlux) {
     // Update point stats at bottom of the document with data of cell being hovered over
-    const pointStatsDiv = document.getElementById('point-stats');
+    const pointStatsDiv = document.getElementById('melt-point-stats');
     if (!pointStatsDiv) return;
 
     if (meltFlux !== null && !isNaN(meltFlux)) {
@@ -423,7 +412,7 @@ function updatePointStats(i, j, meltFlux) {
 }
 
 function createColorbar() {
-    const colorbarDiv = document.getElementById('colorbar');
+    const colorbarDiv = document.getElementById('melt-colorbar');
     if (!colorbarDiv) return;
 
     colorbarDiv.innerHTML = '';
