@@ -1,3 +1,5 @@
+import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
+
 // Global variables
 let width = 1200;
 let height = 800;
@@ -106,7 +108,7 @@ function loadRememberedYear() {
     const yearDisplay = document.getElementById('year-value');
     const initialYear = parseInt(slider.value); // Get the slider's current value
     yearDisplay.textContent = initialYear; // Update display to match
-    loadYear(initialYear); // Load data for that year
+    loadNewIceData(); // Load data for that year
 }
 
 // Updates canvas with sea ice data

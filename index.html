@@ -1,13 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Scrollytelling Template</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="./style.css">
+
+  <script src="./visuals/sliders_setup.js" defer type="module"></script>
+  <script src="./visuals/ice_logic.js" defer type="module"></script>
 </head>
+
 <body>
 
   <!-- ═══ HERO ═══ -->
@@ -21,31 +28,39 @@
     </div>
   </header>
 
+  <div class="control-panel">
+    <label for="year-slider">Select Decade: </label>
+    <input type="range" class="slider" id="year-slider" min="1850" max="2000" step="10" value="1850">
+    <span class="slider-label" id="year-value">1850</span>
+    <label for="month-slider">Select Month: </label>
+    <input type="range" class="slider" id="month-slider" min="1" max="12" step="1" value="1">
+    <span class="slider-label" id="month-value">1</span>
+  </div>
+
+
   <!-- ═══ SCROLLY SECTION ═══ -->
   <main class="scrolly">
 
     <!-- LEFT: sticky viz panel -->
     <div class="viz-column">
       <div class="viz-frame" id="vizFrame">
-    
+
         <div class="viz-panel active" data-viz="1">
           <!-- placeholder: bar chart shape -->
-            <div id="sea-ice-visualization" class="sea-ice-visualization">
-            <!--<div class="loading">Loading visualization...</div> -->
-            </div>
+          <div id="sea-ice-visualization" class="sea-ice-visualization"></div>
         </div>
 
         <!-- VIZ PANEL 2 -->
         <div class="viz-panel" data-viz="2">
           <!-- placeholder: scatter / bubble shape -->
           <svg viewBox="0 0 300 260" width="75%" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="80"  cy="180" r="28" fill="#1a1a18" opacity="0.10"/>
-            <circle cx="155" cy="100" r="44" fill="#1a1a18" opacity="0.16"/>
-            <circle cx="230" cy="150" r="20" fill="#1a1a18" opacity="0.10"/>
-            <circle cx="110" cy="60"  r="14" fill="#1a1a18" opacity="0.12"/>
-            <circle cx="200" cy="60"  r="10" fill="#1a1a18" opacity="0.10"/>
-            <line x1="20" y1="230" x2="280" y2="230" stroke="#1a1a18" stroke-width="1" opacity="0.2"/>
-            <line x1="20" y1="30"  x2="20"  y2="230" stroke="#1a1a18" stroke-width="1" opacity="0.2"/>
+            <circle cx="80" cy="180" r="28" fill="#1a1a18" opacity="0.10" />
+            <circle cx="155" cy="100" r="44" fill="#1a1a18" opacity="0.16" />
+            <circle cx="230" cy="150" r="20" fill="#1a1a18" opacity="0.10" />
+            <circle cx="110" cy="60" r="14" fill="#1a1a18" opacity="0.12" />
+            <circle cx="200" cy="60" r="10" fill="#1a1a18" opacity="0.10" />
+            <line x1="20" y1="230" x2="280" y2="230" stroke="#1a1a18" stroke-width="1" opacity="0.2" />
+            <line x1="20" y1="30" x2="20" y2="230" stroke="#1a1a18" stroke-width="1" opacity="0.2" />
           </svg>
         </div>
 
@@ -53,14 +68,11 @@
         <div class="viz-panel" data-viz="3">
           <!-- placeholder: line / area chart shape -->
           <svg viewBox="0 0 320 240" width="75%" xmlns="http://www.w3.org/2000/svg">
-            <polyline
-              points="20,200 70,170 120,130 170,90 220,110 270,60"
-              fill="none" stroke="#1a1a18" stroke-width="2.5" opacity="0.5"
-              stroke-linecap="round" stroke-linejoin="round"/>
-            <polygon
-              points="20,200 70,170 120,130 170,90 220,110 270,60 270,220 20,220"
-              fill="#1a1a18" opacity="0.06"/>
-            <line x1="20" y1="220" x2="280" y2="220" stroke="#1a1a18" stroke-width="1" opacity="0.2"/>
+            <polyline points="20,200 70,170 120,130 170,90 220,110 270,60" fill="none" stroke="#1a1a18"
+              stroke-width="2.5" opacity="0.5" stroke-linecap="round" stroke-linejoin="round" />
+            <polygon points="20,200 70,170 120,130 170,90 220,110 270,60 270,220 20,220" fill="#1a1a18"
+              opacity="0.06" />
+            <line x1="20" y1="220" x2="280" y2="220" stroke="#1a1a18" stroke-width="1" opacity="0.2" />
           </svg>
         </div>
 
@@ -68,11 +80,11 @@
         <div class="viz-panel" data-viz="4">
           <!-- placeholder: donut / ring chart shape -->
           <svg viewBox="0 0 260 260" width="70%" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="130" cy="130" r="90" fill="none" stroke="#1a1a18" stroke-width="28" opacity="0.10"/>
+            <circle cx="130" cy="130" r="90" fill="none" stroke="#1a1a18" stroke-width="28" opacity="0.10" />
             <circle cx="130" cy="130" r="90" fill="none" stroke="#1a1a18" stroke-width="28" opacity="0.40"
-              stroke-dasharray="226 339" stroke-dashoffset="84" stroke-linecap="round"/>
+              stroke-dasharray="226 339" stroke-dashoffset="84" stroke-linecap="round" />
             <circle cx="130" cy="130" r="90" fill="none" stroke="#1a1a18" stroke-width="28" opacity="0.20"
-              stroke-dasharray="113 452" stroke-dashoffset="-142" stroke-linecap="round"/>
+              stroke-dasharray="113 452" stroke-dashoffset="-142" stroke-linecap="round" />
           </svg>
         </div>
 
@@ -158,13 +170,13 @@
   </footer>
 
   <script>
-    const steps   = document.querySelectorAll('.step');
-    const panels  = document.querySelectorAll('.viz-panel');
-    const dots    = document.querySelectorAll('.viz-dot');
+    const steps = document.querySelectorAll('.step');
+    const panels = document.querySelectorAll('.viz-panel');
+    const dots = document.querySelectorAll('.viz-dot');
 
     function activate(stepNum) {
       panels.forEach(p => p.classList.toggle('active', p.dataset.viz === stepNum));
-      dots.forEach(d   => d.classList.toggle('active',  d.dataset.dot  === stepNum));
+      dots.forEach(d => d.classList.toggle('active', d.dataset.dot === stepNum));
     }
 
     const io = new IntersectionObserver(entries => {
@@ -177,4 +189,5 @@
   </script>
 
 </body>
+
 </html>
