@@ -5,8 +5,8 @@ let currentData = null;
 let colorScale = null;
 
 const seaIceContainer = document.getElementById('sea-ice-container');
-let width = seaIceContainer.offsetWidth || 600; // Default to 600 if container width is not available
-let height = seaIceContainer.offsetHeight || 400; // Default to 400 if container height is not available
+let width = seaIceContainer.offsetWidth;
+let height = seaIceContainer.offsetHeight;
 
 // Initialize all viz elements when the page loads
 document.addEventListener('DOMContentLoaded', function () {
@@ -56,7 +56,7 @@ function initializeSeaIceCanvas() {
     createColorbar();
 }
 
-async function loadNewIceData() {
+export async function loadNewIceData() {
     const yearSlider = document.getElementById('year-slider');
     const monthSlider = document.getElementById('month-slider');
     const currentYear = parseInt(yearSlider.value);
@@ -181,11 +181,7 @@ function updateVisualization(data) {
     // Add title and annotations
     ctx.font = 'bold 16px Arial';
     ctx.fillStyle = '#2c3e50';
-    ctx.fillText(`Sea Ice Thickness (${data.units || 'm'}) - ${data.year}`, 10, 30);
-
-    ctx.font = '12px Arial';
-    ctx.fillStyle = '#7f8c8d';
-    ctx.fillText('7 thickness levels', 10, 55);
+    ctx.fillText(`Sea Ice Thickness (${data.units || 'm'}) - ${data.month || 'Unknown'} ${data.year}`, 10, 30);
 
     // Draw mini color bar at bottom right
     const miniBarWidth = 140;

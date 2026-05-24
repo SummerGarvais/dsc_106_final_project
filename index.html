@@ -14,6 +14,7 @@
 
   <script src="./visuals/sliders_setup.js" defer type="module"></script>
   <script src="./visuals/ice_logic.js" defer type="module"></script>
+  <script src="./visuals/melt_logic.js" defer type="module"></script>
 </head>
 
 <body>
@@ -47,48 +48,8 @@
       <div class="viz-frame" id="vizFrame">
 
         <div class="viz-panel active" data-viz="1" id="sea-ice-container">
-          <!-- placeholder: bar chart shape -->
           <div id="sea-ice-visualization" class="sea-ice-visualization"></div>
         </div>
-
-        <!-- VIZ PANEL 2 -->
-        <div class="viz-panel" data-viz="2">
-          <!-- placeholder: scatter / bubble shape -->
-          <svg viewBox="0 0 300 260" width="75%" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="80" cy="180" r="28" fill="#1a1a18" opacity="0.10" />
-            <circle cx="155" cy="100" r="44" fill="#1a1a18" opacity="0.16" />
-            <circle cx="230" cy="150" r="20" fill="#1a1a18" opacity="0.10" />
-            <circle cx="110" cy="60" r="14" fill="#1a1a18" opacity="0.12" />
-            <circle cx="200" cy="60" r="10" fill="#1a1a18" opacity="0.10" />
-            <line x1="20" y1="230" x2="280" y2="230" stroke="#1a1a18" stroke-width="1" opacity="0.2" />
-            <line x1="20" y1="30" x2="20" y2="230" stroke="#1a1a18" stroke-width="1" opacity="0.2" />
-          </svg>
-        </div>
-
-        <!-- VIZ PANEL 3 -->
-        <div class="viz-panel" data-viz="3">
-          <!-- placeholder: line / area chart shape -->
-          <svg viewBox="0 0 320 240" width="75%" xmlns="http://www.w3.org/2000/svg">
-            <polyline points="20,200 70,170 120,130 170,90 220,110 270,60" fill="none" stroke="#1a1a18"
-              stroke-width="2.5" opacity="0.5" stroke-linecap="round" stroke-linejoin="round" />
-            <polygon points="20,200 70,170 120,130 170,90 220,110 270,60 270,220 20,220" fill="#1a1a18"
-              opacity="0.06" />
-            <line x1="20" y1="220" x2="280" y2="220" stroke="#1a1a18" stroke-width="1" opacity="0.2" />
-          </svg>
-        </div>
-
-        <!-- VIZ PANEL 4 -->
-        <div class="viz-panel" data-viz="4">
-          <!-- placeholder: donut / ring chart shape -->
-          <svg viewBox="0 0 260 260" width="70%" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="130" cy="130" r="90" fill="none" stroke="#1a1a18" stroke-width="28" opacity="0.10" />
-            <circle cx="130" cy="130" r="90" fill="none" stroke="#1a1a18" stroke-width="28" opacity="0.40"
-              stroke-dasharray="226 339" stroke-dashoffset="84" stroke-linecap="round" />
-            <circle cx="130" cy="130" r="90" fill="none" stroke="#1a1a18" stroke-width="28" opacity="0.20"
-              stroke-dasharray="113 452" stroke-dashoffset="-142" stroke-linecap="round" />
-          </svg>
-        </div>
-
       </div>
 
       <!-- progress dots -->
@@ -117,22 +78,8 @@
         </p>
       </div>
 
-      <div class="step" data-step="2">
-        <!--
-        <p class="step-index">02 &nbsp;/&nbsp; Finding</p>
-        <h2>Point to the <em>key detail</em> in the visual.</h2>
-        <p>
-          Connect your prose directly to what is shown. Numbers, comparisons,
-          and named data points anchor the reader's eye to the right element.
-        </p>
-        <p>
-          Swap each <code style="font-family:monospace;font-size:0.85em">.viz-panel</code>
-          placeholder with a real chart — a Canvas element, an inline SVG,
-          a Mapbox embed, or a static image all work here.
-        </p>
-        -->
-
-            <div id="mel-visualization" class="mel-visualization"></div>
+      <div class="step" data-step="2" id="ice-melt-container">
+        <div id="ice-melt-visualization" class="ice-melt-visualization"></div>
       </div>
 
       <div class="step" data-step="3">
@@ -183,14 +130,6 @@
       panels.forEach(p => p.classList.toggle('active', p.dataset.viz === stepNum));
       dots.forEach(d => d.classList.toggle('active', d.dataset.dot === stepNum));
     }
-
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (e.isIntersecting) activate(e.target.dataset.step);
-      });
-    }, { rootMargin: '-35% 0px -55% 0px', threshold: 0 });
-
-    steps.forEach(s => io.observe(s));
   </script>
 
 </body>

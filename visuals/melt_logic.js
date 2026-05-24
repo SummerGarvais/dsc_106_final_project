@@ -2,9 +2,12 @@ import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 
 // Global variables
 let currentData = null;
-let width = 1200;
-let height = 800;
 let colorScale = null;
+
+const iceMeltContainer = document.getElementById('ice-melt-container');
+const width = iceMeltContainer.offsetWidth;
+const height = iceMeltContainer.offsetHeight;
+
 const colors = [
     '#084594',  // Level 1: Extreme freeze
     '#1f64af',  // Level 2: Strong freeze
@@ -34,7 +37,7 @@ function initializeSeaMeltCanvas() {
     canvas.style.border = '1px solid #ddd';
     canvas.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
 
-    const vizDiv = document.getElementById('melt-visualization');
+    const vizDiv = document.getElementById('ice-melt-visualization');
     if (vizDiv) {
         vizDiv.innerHTML = '';
         vizDiv.appendChild(canvas);
@@ -65,7 +68,7 @@ function initializeSeaMeltCanvas() {
     createColorbar();
 }
 
-async function loadNewMeltData() {
+export async function loadNewMeltData() {
     const yearSlider = document.getElementById('year-slider');
     const monthSlider = document.getElementById('month-slider');
     const currentYear = parseInt(yearSlider.value);
@@ -119,19 +122,19 @@ async function loadNewMeltData() {
 function loadRememberedYear() {
     const yearSlider = document.getElementById('year-slider');
     const yearDisplay = document.getElementById('year-value');
-    currentYear = parseInt(yearSlider.value); // Get the year slider's current value
+    const currentYear = parseInt(yearSlider.value); // Get the year slider's current value
     yearDisplay.textContent = currentYear; // Update display to match
 
     const monthSlider = document.getElementById('month-slider');
     const monthDisplay = document.getElementById('month-value');
-    currentMonth = parseInt(monthSlider.value); // Get the month slider's current value
+    const currentMonth = parseInt(monthSlider.value); // Get the month slider's current value
     monthDisplay.textContent = currentMonth; // Update display to match
-    loadNewData(); // Load data for that year and month
+    loadNewMeltData(); // Load data for that year and month
 }
 
 // Updates canvas with sea ice melt data
 function updateVisualization(data) {
-    const canvas = document.getElementById('melt-meltCanvas');
+    const canvas = document.getElementById('melt-canvas');
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
@@ -205,11 +208,7 @@ function updateVisualization(data) {
 // Add title and annotations
 ctx.font = 'bold 16px Arial';
 ctx.fillStyle = '#2c3e50';
-ctx.fillText(`sea ice melt flux (${data.units || 'm'}) - ${data.year}`, 10, 30);
-
-ctx.font = '12px Arial';
-ctx.fillStyle = '#7f8c8d';
-ctx.fillText('9 flux levels', 10, 55);
+ctx.fillText(`Ice Melt Flux (${data.units || 'm'}) - ${data.month || 'Unknown'} ${data.year}`, 10, 30);
 
 // Draw mini color bar at bottom right
 const miniBarWidth = 140;

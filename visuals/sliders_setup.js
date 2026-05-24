@@ -7,12 +7,16 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function setupYearSlider() {
+    console.log('Setting up year slider'); // Debugging log
     const slider = document.getElementById('year-slider');
     const yearDisplay = document.getElementById('year-value');
 
     // Update as you drag
     slider.addEventListener('input', (event) => {
+        const yearDisplay = document.getElementById('year-value');
+        const currentYear = parseInt(event.target.value); // Get the year slider's current value
         yearDisplay.textContent = currentYear; // update year selection label
+        console.log(`Year slider value: ${currentYear}`); // Debugging log
         loadNewIceData(); // update ice map
         loadNewMeltData(); // update melt map
     });
@@ -41,7 +45,10 @@ function setupMonthSlider() {
 
     // Update as you drag
     slider.addEventListener('input', (event) => {
+        const monthDisplay = document.getElementById('month-value');
+        const currentMonth = parseInt(event.target.value); // Get the month slider's current value
         monthDisplay.textContent = currentMonth; // update month selection label
+        console.log(`Month slider value: ${currentMonth}`); // Debugging log
         loadNewIceData(); // update ice map
         loadNewMeltData(); // update melt map
     });
