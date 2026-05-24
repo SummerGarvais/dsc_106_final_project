@@ -4,6 +4,7 @@ import { loadNewMeltData } from './melt_logic.js';
 document.addEventListener('DOMContentLoaded', function () {
     setupYearSlider();
     setupMonthSlider();
+    setupTooltips();
 });
 
 function setupYearSlider() {
@@ -68,4 +69,24 @@ function setupMonthSlider() {
     });
 
     document.body.appendChild(datalist);
+}
+
+function setupTooltips() {
+    let iceTooltip = document.getElementById('ice-tooltip');
+    let meltTooltip = document.getElementById('melt-tooltip');
+    
+    if (!iceTooltip) {
+        iceTooltip = document.createElement('div');
+        iceTooltip.classList.add("tooltip");
+        iceTooltip.id = "ice-tooltip";
+        // Put at the front so that its coordinates are relative to the screen rather than whatever container it's in
+        document.body.prepend(iceTooltip);
+    }  
+    if (!meltTooltip) {
+        meltTooltip = document.createElement('div');
+        meltTooltip.classList.add("tooltip");
+        meltTooltip.id = "melt-tooltip";
+        // Put at the front so that its coordinates are relative to the screen rather than whatever container it's in
+        document.body.prepend(meltTooltip);
+    }
 }

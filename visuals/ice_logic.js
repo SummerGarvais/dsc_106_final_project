@@ -33,7 +33,7 @@ function initializeSeaIceCanvas() {
     // Add hover event listener
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseleave', () => {
-        const tooltip = document.querySelector(".tooltip");
+        const tooltip = document.querySelector("#ice-tooltip");
         tooltip.style.visibility = 'hidden';
         console.log("hiding tooltip");
 
@@ -291,10 +291,11 @@ function updateToolTip(event, iceDepth) {
     const tooltipY = event.pageY - 16;
 
     // Create tooltip if one doesn't exist yet
-    let tooltip = document.querySelector(".tooltip");
+    let tooltip = document.querySelector("#ice-tooltip");
     if (!tooltip) {
         tooltip = document.createElement('div');
         tooltip.classList.add("tooltip");
+        tooltip.id = "ice-tooltip";
         // Put at the front so that its coordinates are relative to the screen rather than whatever container it's in
         document.body.prepend(tooltip);
     }

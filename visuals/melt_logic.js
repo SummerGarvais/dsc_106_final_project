@@ -46,7 +46,7 @@ function initializeSeaMeltCanvas() {
     // Add hover event listener
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseleave', () => {
-        const tooltip = document.querySelector(".tooltip");
+        const tooltip = document.querySelector("#melt-tooltip");
         tooltip.style.visibility = 'hidden';
 
         const pointStatsDiv = document.getElementById('melt-point-stats');
@@ -311,15 +311,17 @@ function handleMouseMove(event) {
 }
 
 function updateToolTip(event, meltFlux) {
+    console.log(`Mouse moved to (${event.pageX}, ${event.pageY}) with melt flux: ${meltFlux}`); // Debugging log
     // Create a tooltip-like display right under the cursor
     const tooltipX = event.pageX - 16;
     const tooltipY = event.pageY - 16;
 
     // Create tooltip if one doesn't exist yet
-    let tooltip = document.querySelector(".tooltip");
+    let tooltip = document.querySelector("#melt-tooltip");
     if (!tooltip) {
         tooltip = document.createElement('div');
         tooltip.classList.add("tooltip");
+        tooltip.id = "melt-tooltip";
         // Put at the front so that its coordinates are relative to the screen rather than whatever container it's in
         document.body.prepend(tooltip);
     }
