@@ -1,9 +1,12 @@
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 
 // Global variables
-let width = 1200;
-let height = 800;
+let currentData = null;
 let colorScale = null;
+
+const seaIceContainer = document.getElementById('sea-ice-container');
+let width = seaIceContainer.offsetWidth || 600; // Default to 600 if container width is not available
+let height = seaIceContainer.offsetHeight || 400; // Default to 400 if container height is not available
 
 // Initialize all viz elements when the page loads
 document.addEventListener('DOMContentLoaded', function () {
@@ -67,7 +70,7 @@ async function loadNewIceData() {
 
     try {
         // Fetch the JSON file for this specific year
-        const response = await fetch(`./data/sea_ice_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json`);
+        const response = await fetch(`./data/ice_data/sea_ice_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

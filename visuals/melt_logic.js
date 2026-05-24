@@ -79,7 +79,7 @@ async function loadNewMeltData() {
 
     try {
         // Fetch the JSON file for this specific year
-        const response = await fetch(`./data/ice_melt_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json`);
+        const response = await fetch(`./data/melt_data/ice_melt_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
