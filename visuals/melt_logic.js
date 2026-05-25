@@ -284,7 +284,7 @@ function updateOverallStats(data) {
 function handleMouseMove(event) {
     if (!currentData) return;
 
-    const canvas = document.getElementById('melt-meltCanvas');
+    const canvas = document.getElementById('melt-canvas');
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -311,7 +311,6 @@ function handleMouseMove(event) {
 }
 
 function updateToolTip(event, meltFlux) {
-    console.log(`Mouse moved to (${event.pageX}, ${event.pageY}) with melt flux: ${meltFlux}`); // Debugging log
     // Create a tooltip-like display right under the cursor
     const tooltipX = event.pageX - 16;
     const tooltipY = event.pageY - 16;

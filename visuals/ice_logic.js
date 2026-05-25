@@ -5,8 +5,9 @@ let currentData = null;
 let colorScale = null;
 
 const seaIceContainer = document.getElementById('sea-ice-container');
-let width = seaIceContainer.offsetWidth;
-let height = seaIceContainer.offsetHeight;
+let width = seaIceContainer.clientWidth;
+let height = seaIceContainer.clientHeight;
+console.log(`Sea ice container dimensions: ${width}x${height}`); // Debugging log
 
 // Initialize all viz elements when the page loads
 document.addEventListener('DOMContentLoaded', function () {

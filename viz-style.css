@@ -53,9 +53,10 @@ label {
     color: #2c3e50;
 }
 
-.visualization {
+.viz-container {
     position: relative;
     display: flex;
+    aspect-ratio: 1 / 1;
     justify-content: center;
     margin-bottom: 20px;
 }

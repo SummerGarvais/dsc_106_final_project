@@ -67,12 +67,15 @@
       margin: 0 auto;
     }
 
+    .viz-column, .steps-column {
+      padding: 1em 2em;
+    }
+
     /* ── LEFT: sticky visualization panel ── */
     .viz-column {
       position: sticky;
       top: 0;
       height: 100vh;
-      padding: 3vw;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -124,16 +127,11 @@
     }
 
     /* ── RIGHT: scrolling steps ── */
-    .steps-column {
-      padding: 0;
-    }
-
     .step {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      padding: 6vw 5vw 6vw 5vw;
       border-bottom: 1px solid var(--rule);
     }
     .step:last-child { border-bottom: none; }
