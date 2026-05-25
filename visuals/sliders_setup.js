@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function () {
     setupYearSlider();
     setupMonthSlider();
     setupTooltips();
+    loadRememberedYear(); // Load the remembered year and month to initialize the display and data
 });
 
 function setupYearSlider() {
@@ -71,10 +72,38 @@ function setupMonthSlider() {
     document.body.appendChild(datalist);
 }
 
+export function getCurrentYear() {
+    const yearSlider = document.getElementById('year-slider');
+    return parseInt(yearSlider.value);
+}
+
+export function getCurrentMonth(name = false) {
+    const monthsDict = {
+        1: 'January',
+        2: 'February',
+        3: 'March',
+        4: 'April',
+        5: 'May',
+        6: 'June',
+        7: 'July',
+        8: 'August',
+        9: 'September',
+        10: 'October',
+        11: 'November',
+        12: 'December'
+    };
+
+    const monthSlider = document.getElementById('month-slider');
+    if (name) {
+        return monthsDict[parseInt(monthSlider.value)];
+    }
+    return parseInt(monthSlider.value);
+}
+
 function setupTooltips() {
     let iceTooltip = document.getElementById('ice-tooltip');
     let meltTooltip = document.getElementById('melt-tooltip');
-    
+
     if (!iceTooltip) {
         iceTooltip = document.createElement('div');
         iceTooltip.classList.add("tooltip");
@@ -89,4 +118,18 @@ function setupTooltips() {
         // Put at the front so that its coordinates are relative to the screen rather than whatever container it's in
         document.body.prepend(meltTooltip);
     }
+}
+
+// Slider will remember its year between refreshes, so load it in to make all other elements match!
+function loadRememberedYear() {
+    const yearDisplay = document.getElementById('year-value');
+    const initialYear = getCurrentYear(); // Get the slider's current value
+    yearDisplay.textContent = initialYear; // Update display to match
+
+    const monthDisplay = document.getElementById('month-value');
+    const initialMonth = getCurrentMonth(); // Get the slider's current value
+    monthDisplay.textContent = initialMonth; // Update display to match
+    
+    loadNewIceData(); // Load data for that year
+    loadNewMeltData(); // Load data for that year and month
 }

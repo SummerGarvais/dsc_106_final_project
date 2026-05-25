@@ -20,6 +20,10 @@ h1 {
 }
 
 .control-panel {
+    position: sticky;
+    top: 0;
+    z-index: 100;  /* Keeps it above other content */
+
     display: grid;
     grid-template-columns: auto 1fr auto;
     justify-content: center;

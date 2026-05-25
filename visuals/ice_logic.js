@@ -1,4 +1,5 @@
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
+import { getCurrentYear, getCurrentMonth } from './sliders_setup.js';
 
 // Global variables
 let currentData = null;
@@ -12,7 +13,6 @@ console.log(`Sea ice container dimensions: ${width}x${height}`); // Debugging lo
 // Initialize all viz elements when the page loads
 document.addEventListener('DOMContentLoaded', function () {
     initializeSeaIceCanvas();
-    loadRememberedYear();
 });
 
 function initializeSeaIceCanvas() {
@@ -58,10 +58,8 @@ function initializeSeaIceCanvas() {
 }
 
 export async function loadNewIceData() {
-    const yearSlider = document.getElementById('year-slider');
-    const monthSlider = document.getElementById('month-slider');
-    const currentYear = parseInt(yearSlider.value);
-    const currentMonth = parseInt(monthSlider.value);
+    const currentYear = getCurrentYear();
+    const currentMonth = getCurrentMonth();
 
     // Show loading state
     const overallStatsDiv = document.getElementById('ice-overall-stats');
@@ -104,15 +102,6 @@ export async function loadNewIceData() {
             ctx.fillText(`Failed to load data for ${currentYear}, ${currentMonth}`, width / 2 - 150, height / 2);
         }
     }
-}
-
-// Slider will remember its year between refreshes, so load it in to make all other elements match!
-function loadRememberedYear() {
-    const slider = document.getElementById('year-slider');
-    const yearDisplay = document.getElementById('year-value');
-    const initialYear = parseInt(slider.value); // Get the slider's current value
-    yearDisplay.textContent = initialYear; // Update display to match
-    loadNewIceData(); // Load data for that year
 }
 
 // Updates canvas with sea ice data
@@ -180,9 +169,12 @@ function updateVisualization(data) {
     }
 
     // Add title and annotations
+    const currentYear = getCurrentYear();
+    const currentMonthName = getCurrentMonth(name = true);
+
     ctx.font = 'bold 16px Arial';
     ctx.fillStyle = '#2c3e50';
-    ctx.fillText(`Sea Ice Thickness (${data.units || 'm'}) - ${data.month || 'Unknown'} ${data.year}`, 10, 30);
+    ctx.fillText(`Sea Ice Thickness (${data.units || 'm'}) - ${currentMonthName} ${currentYear}`, 10, 30);
 
     // Draw mini color bar at bottom right
     const miniBarWidth = 140;
