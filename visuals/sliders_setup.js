@@ -15,10 +15,9 @@ function setupYearSlider() {
 
     // Update as you drag
     slider.addEventListener('input', (event) => {
-        const yearDisplay = document.getElementById('year-value');
-        const currentYear = parseInt(event.target.value); // Get the year slider's current value
+        const currentYear = getCurrentYear();
         yearDisplay.textContent = currentYear; // update year selection label
-        console.log(`Year slider value: ${currentYear}`); // Debugging log
+        
         loadNewIceData(); // update ice map
         loadNewMeltData(); // update melt map
     });
@@ -47,10 +46,9 @@ function setupMonthSlider() {
 
     // Update as you drag
     slider.addEventListener('input', (event) => {
-        const monthDisplay = document.getElementById('month-value');
-        const currentMonth = parseInt(event.target.value); // Get the month slider's current value
-        monthDisplay.textContent = currentMonth; // update month selection label
-        console.log(`Month slider value: ${currentMonth}`); // Debugging log
+        const currentMonthName = getCurrentMonth(name = true);
+        monthDisplay.textContent = currentMonthName; // update month selection label
+        
         loadNewIceData(); // update ice map
         loadNewMeltData(); // update melt map
     });
@@ -127,9 +125,9 @@ function loadRememberedYear() {
     yearDisplay.textContent = initialYear; // Update display to match
 
     const monthDisplay = document.getElementById('month-value');
-    const initialMonth = getCurrentMonth(); // Get the slider's current value
-    monthDisplay.textContent = initialMonth; // Update display to match
-    
+    const initialMonthName = getCurrentMonth(name = true); // Get the slider's current value
+    monthDisplay.textContent = initialMonthName; // Update display to match
+
     loadNewIceData(); // Load data for that year
     loadNewMeltData(); // Load data for that year and month
 }
