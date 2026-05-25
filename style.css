@@ -185,3 +185,8 @@
       .step { min-height: auto; padding: 3rem 2rem; }
       .hero { padding: 2rem 2rem 3rem; }
     }
+
+.scrolly--flipped .viz-column {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
