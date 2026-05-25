@@ -151,27 +151,27 @@ function updateVisualization(data) {
                 let color;
 
                 if (value <= -0.0009) {
-                    color = colors[0];      // Level 1: Extreme freeze
+                    color = colors[10];      // Level 1: Extreme freeze
                 } else if (value <= -0.0007) {
-                    color = colors[1];      // Level 2: Strong freeze
+                    color = colors[9];      // Level 2: Strong freeze
                 } else if (value <= -0.0005) {
-                    color = colors[2];      // Level 3: Moderate freeze
+                    color = colors[8];      // Level 3: Moderate freeze
                 } else if (value <= -0.0003) {
-                    color = colors[3];      // Level 4: Light freeze
+                    color = colors[7];      // Level 4: Light freeze
                 } else if (value <= -0.0001) {
-                    color = colors[4];      // Level 5: Very light freeze
+                    color = colors[6];      // Level 5: Very light freeze
                 } else if (value <= 0) {
                     color = colors[5];      // Level 6: Near zero / minimal
                 } else if (value <= 0.0001) {
-                    color = colors[6];      // Level 7: Very minimal melt
+                    color = colors[4];      // Level 7: Very minimal melt
                 } else if (value <= 0.0003) {
-                    color = colors[7];      // Level 8: Light melt
+                    color = colors[3];      // Level 8: Light melt
                 } else if (value <= 0.0005) {
-                    color = colors[8];      // Level 9: Moderate melt
+                    color = colors[2];      // Level 9: Moderate melt
                 } else if (value <= 0.0007) {
-                    color = colors[9];      // Level 10: Strong melt
+                    color = colors[1];      // Level 10: Strong melt
                 } else if (value <= 0.0009) {
-                    color = colors[10];     // Level 11: Very strong melt
+                    color = colors[0];     // Level 11: Very strong melt
             }
 
             ctx.fillStyle = color;
