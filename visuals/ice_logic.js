@@ -39,7 +39,7 @@ function initializeSeaIceCanvas() {
     canvas.style.border = '1px solid #ddd';
     canvas.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
 
-    const vizDiv = document.getElementById('sea-ice-visualization');
+    const vizDiv = document.getElementById('sea-ice-container');
     if (vizDiv) {
         vizDiv.innerHTML = '';
         vizDiv.appendChild(canvas);
@@ -251,10 +251,12 @@ function updateOverallStats(data) {
         const totalCells = thicknessData.length * thicknessData[0].length;
         const iceCoverage = (values.length / totalCells * 100).toFixed(1);
 
+        const currentMonthName = getCurrentMonth(name = true);
+        const currentYear = getCurrentYear();
         overallStatsDiv.innerHTML = `
-            <strong>📊 Statistics for ${data.year}:</strong><br>
-            Mean ice thickness: ${mean.toFixed(3)} ${data.units || 'm'} |
-            Max: ${max.toFixed(3)} ${data.units || 'm'}<br>
+            <strong>Statistics for ${currentMonthName} ${currentYear}:</strong><br>
+            Mean ice thickness: ${mean.toFixed(3)} ${data.units || 'm'} —
+            Max: ${max.toFixed(3)} ${data.units || 'm'} —
             Ice-covered area fraction: ${iceCoverage}%
         `;
     } else {

@@ -51,7 +51,7 @@ function initializeSeaMeltCanvas() {
     canvas.style.border = '1px solid #ddd';
     canvas.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
 
-    const vizDiv = document.getElementById('ice-melt-visualization');
+    const vizDiv = document.getElementById('ice-melt-container');
     if (vizDiv) {
         vizDiv.innerHTML = '';
         vizDiv.appendChild(canvas);
@@ -186,65 +186,65 @@ function updateVisualization(data) {
                     color = colors[1];      // Level 10: Strong melt
                 } else if (value <= 0.0009) {
                     color = colors[0];     // Level 11: Very strong melt
+                }
+
+                ctx.fillStyle = color;
+                ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
+
+                // Subtle grid lines
+                ctx.strokeStyle = 'rgba(200,200,200,0.2)';
+                ctx.strokeRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
+            } else {
+                // Land or no ice
+                ctx.fillStyle = '#e0e0e0';
+                ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
             }
-
-            ctx.fillStyle = color;
-            ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
-
-            // Subtle grid lines
-            ctx.strokeStyle = 'rgba(200,200,200,0.2)';
-            ctx.strokeRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
-        } else {
-            // Land or no ice
-            ctx.fillStyle = '#e0e0e0';
-            ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
         }
     }
-}
 
-// Add title and annotations
-const currentYear = getCurrentYear();
-const currentMonthName = getCurrentMonth(name = true);
+    // Add title and annotations
+    const currentYear = getCurrentYear();
+    const currentMonthName = getCurrentMonth(name = true);
 
-ctx.font = '500 13px system-ui, sans-serif';
-ctx.fillStyle = 'rgba(26,26,24,0.75)';
-ctx.fillText(`Ice Melt Flux · ${currentMonthName} ${currentYear}`, 12, 22);
+    ctx.font = '500 13px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(26,26,24,0.75)';
+    ctx.fillText(`Ice Melt Flux · ${currentMonthName} ${currentYear}`, 12, 22);
 
-// Draw mini color bar at bottom right
-const miniBarWidth = 140;
-const miniBarHeight = 12;
-const miniBarX = width - miniBarWidth - 10;
-const miniBarY = height - 25;
+    // Draw mini color bar at bottom right
+    const miniBarWidth = 140;
+    const miniBarHeight = 12;
+    const miniBarX = width - miniBarWidth - 10;
+    const miniBarY = height - 25;
 
-// Define the color segments for mini bar
-const segments = [
-    { color: colors[0], width: miniBarWidth / 11 },
-    { color: colors[1], width: miniBarWidth / 11 },
-    { color: colors[2], width: miniBarWidth / 11 },
-    { color: colors[3], width: miniBarWidth / 11 },
-    { color: colors[4], width: miniBarWidth / 11 },
-    { color: colors[5], width: miniBarWidth / 11 },
-    { color: colors[6], width: miniBarWidth / 11 },
-    { color: colors[7], width: miniBarWidth / 11 },
-    { color: colors[8], width: miniBarWidth / 11 },
-    { color: colors[9], width: miniBarWidth / 11 },
-    { color: colors[10], width: miniBarWidth / 11 }
-];
+    // Define the color segments for mini bar
+    const segments = [
+        { color: colors[0], width: miniBarWidth / 11 },
+        { color: colors[1], width: miniBarWidth / 11 },
+        { color: colors[2], width: miniBarWidth / 11 },
+        { color: colors[3], width: miniBarWidth / 11 },
+        { color: colors[4], width: miniBarWidth / 11 },
+        { color: colors[5], width: miniBarWidth / 11 },
+        { color: colors[6], width: miniBarWidth / 11 },
+        { color: colors[7], width: miniBarWidth / 11 },
+        { color: colors[8], width: miniBarWidth / 11 },
+        { color: colors[9], width: miniBarWidth / 11 },
+        { color: colors[10], width: miniBarWidth / 11 }
+    ];
 
-for (let i = 0; i < segments.length; i++) {
-    ctx.fillStyle = segments[i].color;
-    ctx.fillRect(miniBarX + (i * segments[i].width), miniBarY, segments[i].width, miniBarHeight);
-}
+    for (let i = 0; i < segments.length; i++) {
+        ctx.fillStyle = segments[i].color;
+        ctx.fillRect(miniBarX + (i * segments[i].width), miniBarY, segments[i].width, miniBarHeight);
+    }
 
-// Border around mini color bar
-ctx.strokeStyle = '#999';
-ctx.strokeRect(miniBarX, miniBarY, miniBarWidth, miniBarHeight);
+    // Border around mini color bar
+    ctx.strokeStyle = '#999';
+    ctx.strokeRect(miniBarX, miniBarY, miniBarWidth, miniBarHeight);
 
-// Labels for mini color bar
-ctx.fillStyle = 'rgba(26,26,24,0.55)';
-ctx.font = '11px system-ui, sans-serif';
-ctx.fillText('Freeze', miniBarX, miniBarY - 4);
-ctx.fillText('Melt', miniBarX + miniBarWidth - 24, miniBarY - 4);
+    // Labels for mini color bar
+    ctx.fillStyle = 'rgba(26,26,24,0.55)';
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.fillText('Freeze', miniBarX, miniBarY - 4);
+    ctx.fillText('Melt', miniBarX + miniBarWidth - 24, miniBarY - 4);
 }
 
 // Update stats for that year at the bottom of the page
@@ -270,10 +270,12 @@ function updateOverallStats(data) {
         const max = Math.max(...values);
         const min = Math.min(...values);
 
+        const currentMonthName = getCurrentMonth(name = true);
+        const currentYear = getCurrentYear();
         overallStatsDiv.innerHTML = `
-            <strong>📊 Statistics for ${data.year}:</strong><br>
-            Mean ice flux: ${mean.toFixed(5)} ${data.units || 'm'} | 
-            Max: ${max.toFixed(5)} ${data.units || 'm'} | 
+            <strong>Statistics for ${currentMonthName} ${currentYear}:</strong><br>
+            Mean ice flux: ${mean.toFixed(5)} ${data.units || 'm'} — 
+            Max: ${max.toFixed(5)} ${data.units || 'm'} — 
             Min: ${min.toFixed(5)} ${data.units || 'm'}<br>
         `;
     } else {

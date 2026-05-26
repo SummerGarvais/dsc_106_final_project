@@ -21,12 +21,12 @@
 
   <!-- ═══ HERO ═══ -->
   <header class="hero">
-    <p class="hero-tag">DSC 106 · Data Visualization · 2025</p>
+    <p class="hero-tag">DSC 106 · Data Visualization · 2026</p>
     <h1>The Vanishing <em>Arctic.</em></h1>
     <div class="hero-meta">
       <span>Adam Walters, Joseph Calderon, Summer Garvais, Lyn Mansfield</span>
       <span>UC San Diego</span>
-      <span>June 2025</span>
+      <span>June 2026</span>
     </div>
   </header>
 
@@ -46,11 +46,11 @@
     <!-- LEFT: sticky sea ice visualization -->
     <div class="viz-column">
       <div class="viz-frame">
-        <div class="viz-container" id="sea-ice-container">
-          <div id="sea-ice-visualization" class="sea-ice-visualization"></div>
+        <div id="sea-ice-viz-and-stats" class="viz-container">
+          <div id="sea-ice-container" class="visualization"></div>
+          <div class="viz-stats" id="ice-overall-stats"></div>
         </div>
       </div>
-      <div class="viz-stats" id="ice-overall-stats"></div>
     </div>
 
     <!-- RIGHT: scrolling narrative -->
@@ -165,18 +165,18 @@
     <!-- RIGHT: sticky melt flux visualization -->
     <div class="viz-column">
       <div class="viz-frame">
-        <div class="viz-container" id="ice-melt-container">
-          <div id="ice-melt-visualization" class="ice-melt-visualization"></div>
+        <div id="ice-melt-viz-and-stats" class="viz-container">
+          <div id="ice-melt-container" class="visualization"></div>
+          <div id="melt-overall-stats" class="viz-stats"></div>
         </div>
       </div>
-      <div class="viz-stats" id="melt-overall-stats"></div>
     </div>
 
   </main>
 
   <!-- ═══ FOOTER ═══ -->
   <footer class="footer">
-    <span>UC San Diego · DSC 106 · 2025</span>
+    <span>UC San Diego · DSC 106 · 2026</span>
     <span>Data: NSIDC / CMIP model output · 1850–2000</span>
   </footer>
 
@@ -185,5 +185,4 @@
   <div id="melt-point-stats" style="display:none;"></div>
 
 </body>
-
 </html>
