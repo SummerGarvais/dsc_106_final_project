@@ -85,12 +85,8 @@ h1 {
   margin: 0 auto;
 }
 
-.viz-column {
-  padding: 1.25rem 1.5rem;
-}
-
-.steps-column {
-  padding: 0 3rem;
+.viz-column, .steps-column {
+  padding: 1.25rem 3rem;
 }
 
 /* ── LEFT: sticky visualization panel ── */
@@ -248,7 +244,7 @@ h1 {
 /* ─── SECTION BREAK ─── */
 .section-break {
   max-width: 640px;
-  margin: 3.5rem auto;
+  margin: auto;
   padding: 3.5rem 2rem 3rem;
   text-align: center;
   border-top: 1px solid var(--border);

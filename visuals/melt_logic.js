@@ -206,9 +206,12 @@ function updateVisualization(data) {
     const currentYear = getCurrentYear();
     const currentMonthName = getCurrentMonth(name = true);
 
-    ctx.font = '500 13px system-ui, sans-serif';
+    ctx.font = '500 16px system-ui, sans-serif';
     ctx.fillStyle = 'rgba(26,26,24,0.75)';
-    ctx.fillText(`Ice Melt Flux · ${currentMonthName} ${currentYear}`, 12, 22);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; // Centers text vertically
+    ctx.fillText(`Ice Melt Flux · ${currentMonthName} ${currentYear}`, width / 2, 20);
 
     // Draw mini color bar at bottom right
     const miniBarWidth = 140;
@@ -243,8 +246,8 @@ function updateVisualization(data) {
     // Labels for mini color bar
     ctx.fillStyle = 'rgba(26,26,24,0.55)';
     ctx.font = '11px system-ui, sans-serif';
-    ctx.fillText('Freeze', miniBarX, miniBarY - 4);
-    ctx.fillText('Melt', miniBarX + miniBarWidth - 24, miniBarY - 4);
+    ctx.fillText('Freeze', miniBarX + 18, miniBarY - 5);
+    ctx.fillText('Melt', miniBarX + miniBarWidth - 10, miniBarY - 5);
 }
 
 // Update stats for that year at the bottom of the page
@@ -314,8 +317,8 @@ function handleMouseMove(event) {
 
 function updateToolTip(event, meltFlux) {
     // Create a tooltip-like display right under the cursor
-    const tooltipX = event.pageX - 16;
-    const tooltipY = event.pageY - 16;
+    const tooltipX = event.pageX;
+    const tooltipY = event.pageY;
 
     // Create tooltip if one doesn't exist yet
     let tooltip = document.querySelector("#melt-tooltip");
