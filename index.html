@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Scrollytelling Template</title>
+  <title>The Vanishing Arctic · DSC 106</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@300;400;500&display=swap"
@@ -21,147 +21,168 @@
 
   <!-- ═══ HERO ═══ -->
   <header class="hero">
-    <p class="hero-tag">Scrollytelling · 2025</p>
-    <h1>Your story, <em>told visually.</em></h1>
+    <p class="hero-tag">DSC 106 · Data Visualization · 2025</p>
+    <h1>The Vanishing <em>Arctic.</em></h1>
     <div class="hero-meta">
-      <span>Author Name</span>
-      <span>Publication</span>
-      <span>May 2025</span>
+      <span>Adam Walters, Joseph Calderon, Summer Garvais, Lyn Mansfield</span>
+      <span>UC San Diego</span>
+      <span>June 2025</span>
     </div>
   </header>
 
+  <!-- ═══ STICKY CONTROL PANEL ═══ -->
   <div class="control-panel">
-    <label for="year-slider">Select Decade: </label>
+    <label for="year-slider">Decade</label>
     <input type="range" class="slider" id="year-slider" min="1850" max="2000" step="10" value="1850">
     <span class="slider-label" id="year-value">1850</span>
-    <label for="month-slider">Select Month: </label>
+    <label for="month-slider">Month</label>
     <input type="range" class="slider" id="month-slider" min="1" max="12" step="1" value="1">
-    <span class="slider-label" id="month-value">1</span>
+    <span class="slider-label" id="month-value">January</span>
   </div>
 
-
-  <!-- ═══ SCROLLY SECTION ═══ -->
+  <!-- ═══ SECTION 1: Sea Ice Thickness ═══ -->
   <main class="scrolly">
 
-    <!-- LEFT: sticky viz panel -->
+    <!-- LEFT: sticky sea ice visualization -->
     <div class="viz-column">
-      <div class="viz-frame" id="vizFrame">
-
+      <div class="viz-frame">
         <div class="viz-container" id="sea-ice-container">
           <div id="sea-ice-visualization" class="sea-ice-visualization"></div>
         </div>
       </div>
-
-      <!-- progress dots
-      <div class="viz-dots" id="vizDots">
-        <div class="viz-dot active" data-dot="1"></div>
-        <div class="viz-dot" data-dot="2"></div>
-        <div class="viz-dot" data-dot="3"></div>
-        <div class="viz-dot" data-dot="4"></div>
-      </div>
-    -->
+      <div class="viz-stats" id="ice-overall-stats"></div>
     </div>
 
     <!-- RIGHT: scrolling narrative -->
     <div class="steps-column">
 
       <div class="step" data-step="1">
-        <p class="step-index">01 &nbsp;/&nbsp; Context</p>
-        <h2>Replace with your <em>section title.</em></h2>
+        <p class="step-index">01 &nbsp;/&nbsp; Sea Ice Thickness</p>
+        <h2>A bird's-eye view of <em>Arctic ice.</em></h2>
         <p>
-          Each step has a matching visualization on the left. As the reader
-          scrolls down, the left panel transitions to the next chart while
-          this column continues flowing.
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+          veniam, quis nostrud exercitation ullamco laboris.
         </p>
         <p>
-          Write 2–4 short paragraphs per step. Keep each beat focused on a
-          single insight so the reader knows exactly what to look for.
+          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+          dolore eu fugiat nulla pariatur.
         </p>
       </div>
 
-      <div class="viz-container" id="ice-melt-container">
-        <div id="ice-melt-visualization" class="ice-melt-visualization"></div>
+      <div class="step" data-step="2">
+        <p class="step-index">02 &nbsp;/&nbsp; Seasonal Pulse</p>
+        <h2>Winter fills the basin. Summer <em>empties it.</em></h2>
+        <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+          veniam, quis nostrud exercitation ullamco laboris nisi aliquip.
+        </p>
+        <p>
+          Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+          officia deserunt mollit anim id est laborum.
+        </p>
       </div>
+
+      <div class="step" data-step="3">
+        <p class="step-index">03 &nbsp;/&nbsp; The Long View</p>
+        <h2>Advancing the decades reveals a <em>slow retreat.</em></h2>
+        <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+          veniam, quis nostrud exercitation ullamco laboris.
+        </p>
+        <p>
+          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+          dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat.
+        </p>
+      </div>
+
+    </div>
   </main>
-  <div class="bottom-caption">
-    <h2>This is a caption to discuss these two graphs</h2>
+
+  <!-- ═══ SECTION BREAK ═══ -->
+  <div class="section-break">
+    <p class="section-break-label">A second lens</p>
+    <h2>Thickness tells us <em>where</em> the ice is.<br>Flux tells us <em>how fast</em> it's changing.</h2>
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+      tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+      veniam, quis nostrud exercitation ullamco laboris nisi aliquip.
+    </p>
   </div>
 
-  <!-- ═══ SCROLLY SECTION 2: steps left, viz right ═══ -->
+  <!-- ═══ SECTION 2: Ice Melt Flux ═══ -->
   <main class="scrolly scrolly--flipped">
- 
+
     <!-- LEFT: scrolling narrative -->
     <div class="steps-column">
- 
+
       <div class="step" data-step="1">
-         This will be more information about the graph. NOTE:
-         This placeholder -> should be replaced with Ice-melt graph
+        <p class="step-index">04 &nbsp;/&nbsp; Ice Melt Flux</p>
+        <h2>Where ice meets ocean, <em>change accelerates.</em></h2>
+        <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+          veniam, quis nostrud exercitation ullamco laboris nisi aliquip.
+        </p>
+        <p>
+          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+          dolore eu fugiat nulla pariatur.
+        </p>
       </div>
- 
+
       <div class="step" data-step="2">
-        <img src = "./images/product life cycle.png"
-             alt ="This is a placeholder image"
-             width = "600">
+        <p class="step-index">05 &nbsp;/&nbsp; Edge Dynamics</p>
+        <h2>The ice edge is a <em>zone of transformation.</em></h2>
+        <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+          veniam, quis nostrud exercitation ullamco laboris.
+        </p>
+        <p>
+          Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+          officia deserunt mollit anim id est laborum.
+        </p>
       </div>
- 
+
+      <div class="step" data-step="3">
+        <p class="step-index">06 &nbsp;/&nbsp; 150 Years</p>
+        <h2>A century and a half, <em>one direction.</em></h2>
+        <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+          veniam, quis nostrud exercitation ullamco laboris nisi aliquip.
+        </p>
+        <p>
+          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+          dolore eu fugiat nulla pariatur.
+        </p>
+      </div>
+
     </div>
- 
-    <!-- RIGHT: sticky viz panel -->
+
+    <!-- RIGHT: sticky melt flux visualization -->
     <div class="viz-column">
       <div class="viz-frame">
- 
-        <div class="viz-panel active" data-viz="1">
-          <!-- your visualization here -->
-           <img src="./images/bikewatching.png" width="600">
+        <div class="viz-container" id="ice-melt-container">
+          <div id="ice-melt-visualization" class="ice-melt-visualization"></div>
         </div>
- 
-        <!--
-        VIZ PANEL 2
-        <div class="viz-panel" data-viz="2">
-        </div>
-        -->
- 
       </div>
- 
-      <!-- progress dots
-      <div class="viz-dots">
-        <div class="viz-dot active" data-dot="1"></div>
-        <div class="viz-dot" data-dot="2"></div>
-        <div class="viz-dot" data-dot="3"></div>
-        <div class="viz-dot" data-dot="4"></div>
-      </div>
-    -->
+      <div class="viz-stats" id="melt-overall-stats"></div>
     </div>
- 
+
   </main>
-  <div class="bottom-caption">
-    <h2>This is a caption to discuss these two graphs</h2>
-  </div>
 
-
-  <div class="bottom-viz-container">
-    <div id="bottom-visualization" class="bottom-visualization">
-      <!-- Put something awesome here! -->
-      <p style="text-align:center;color:#999;font-size:0.9em;margin-top:20px;">Replace with a final takeaway viz or call
-        to action.</p>
-    </div>
-  </div>
-
+  <!-- ═══ FOOTER ═══ -->
   <footer class="footer">
-    <span>Your Publication</span>
-    <span>Data source: replace me</span>
+    <span>UC San Diego · DSC 106 · 2025</span>
+    <span>Data: NSIDC / CMIP model output · 1850–2000</span>
   </footer>
 
-  <script>
-    const steps = document.querySelectorAll('.step');
-    const panels = document.querySelectorAll('.viz-panel');
-    const dots = document.querySelectorAll('.viz-dot');
-
-    function activate(stepNum) {
-      panels.forEach(p => p.classList.toggle('active', p.dataset.viz === stepNum));
-      dots.forEach(d => d.classList.toggle('active', d.dataset.dot === stepNum));
-    }
-  </script>
+  <!-- Hidden hover stat panels used by visualization JS -->
+  <div id="ice-point-stats" style="display:none;"></div>
+  <div id="melt-point-stats" style="display:none;"></div>
 
 </body>
 

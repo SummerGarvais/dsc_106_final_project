@@ -6,8 +6,8 @@ let currentData = null;
 let colorScale = null;
 
 const iceMeltContainer = document.getElementById('ice-melt-container');
-const width = iceMeltContainer.offsetWidth;
-const height = iceMeltContainer.offsetHeight;
+let width = iceMeltContainer.offsetWidth;
+let height = iceMeltContainer.offsetHeight;
 
 const colors = [
     '#084594',  // Level 1: Extreme freeze
@@ -25,6 +25,20 @@ const colors = [
 // Initialize all viz elements when the page loads
 document.addEventListener('DOMContentLoaded', function () {
     initializeSeaMeltCanvas();
+
+    new ResizeObserver(() => {
+        const newW = iceMeltContainer.clientWidth;
+        const newH = iceMeltContainer.clientHeight;
+        if (newW === width && newH === height) return;
+        width = newW;
+        height = newH;
+        const canvas = document.getElementById('melt-canvas');
+        if (canvas) {
+            canvas.width = width;
+            canvas.height = height;
+            if (currentData) updateVisualization(currentData);
+        }
+    }).observe(iceMeltContainer);
 });
 
 function initializeSeaMeltCanvas() {
@@ -192,9 +206,9 @@ function updateVisualization(data) {
 const currentYear = getCurrentYear();
 const currentMonthName = getCurrentMonth(name = true);
 
-ctx.font = 'bold 16px Arial';
-ctx.fillStyle = '#2c3e50';
-ctx.fillText(`Ice Melt Flux (${data.units || 'm'}) - ${currentMonthName} ${currentYear}`, 10, 30);
+ctx.font = '500 13px system-ui, sans-serif';
+ctx.fillStyle = 'rgba(26,26,24,0.75)';
+ctx.fillText(`Ice Melt Flux · ${currentMonthName} ${currentYear}`, 12, 22);
 
 // Draw mini color bar at bottom right
 const miniBarWidth = 140;
@@ -227,10 +241,10 @@ ctx.strokeStyle = '#999';
 ctx.strokeRect(miniBarX, miniBarY, miniBarWidth, miniBarHeight);
 
 // Labels for mini color bar
-ctx.fillStyle = '#666';
-ctx.font = '9px Arial';
-ctx.fillText('Ice Growth', miniBarX, miniBarY - 2);
-ctx.fillText('Ice Melt', miniBarX + miniBarWidth - 30, miniBarY - 2);
+ctx.fillStyle = 'rgba(26,26,24,0.55)';
+ctx.font = '11px system-ui, sans-serif';
+ctx.fillText('Freeze', miniBarX, miniBarY - 4);
+ctx.fillText('Melt', miniBarX + miniBarWidth - 24, miniBarY - 4);
 }
 
 // Update stats for that year at the bottom of the page

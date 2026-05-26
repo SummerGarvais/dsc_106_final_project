@@ -13,6 +13,20 @@ console.log(`Sea ice container dimensions: ${width}x${height}`); // Debugging lo
 // Initialize all viz elements when the page loads
 document.addEventListener('DOMContentLoaded', function () {
     initializeSeaIceCanvas();
+
+    new ResizeObserver(() => {
+        const newW = seaIceContainer.clientWidth;
+        const newH = seaIceContainer.clientHeight;
+        if (newW === width && newH === height) return;
+        width = newW;
+        height = newH;
+        const canvas = document.getElementById('ice-canvas');
+        if (canvas) {
+            canvas.width = width;
+            canvas.height = height;
+            if (currentData) updateVisualization(currentData);
+        }
+    }).observe(seaIceContainer);
 });
 
 function initializeSeaIceCanvas() {
@@ -172,9 +186,9 @@ function updateVisualization(data) {
     const currentYear = getCurrentYear();
     const currentMonthName = getCurrentMonth(name = true);
 
-    ctx.font = 'bold 16px Arial';
-    ctx.fillStyle = '#2c3e50';
-    ctx.fillText(`Sea Ice Thickness (${data.units || 'm'}) - ${currentMonthName} ${currentYear}`, 10, 30);
+    ctx.font = '500 13px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(26,26,24,0.75)';
+    ctx.fillText(`Sea Ice Thickness · ${currentMonthName} ${currentYear}`, 12, 22);
 
     // Draw mini color bar at bottom right
     const miniBarWidth = 140;
@@ -203,10 +217,10 @@ function updateVisualization(data) {
     ctx.strokeRect(miniBarX, miniBarY, miniBarWidth, miniBarHeight);
 
     // Labels for mini color bar
-    ctx.fillStyle = '#666';
-    ctx.font = '9px Arial';
-    ctx.fillText('Thinner', miniBarX, miniBarY - 2);
-    ctx.fillText('Thicker', miniBarX + miniBarWidth - 30, miniBarY - 2);
+    ctx.fillStyle = 'rgba(26,26,24,0.55)';
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.fillText('Thinner', miniBarX, miniBarY - 4);
+    ctx.fillText('Thicker', miniBarX + miniBarWidth - 36, miniBarY - 4);
 }
 
 // Update stats for that year at the bottom of the page
@@ -239,10 +253,9 @@ function updateOverallStats(data) {
 
         overallStatsDiv.innerHTML = `
             <strong>📊 Statistics for ${data.year}:</strong><br>
-            Mean ice thickness: ${mean.toFixed(3)} ${data.units || 'm'} | 
-            Max: ${max.toFixed(3)} ${data.units || 'm'} | 
-            Min: ${min.toFixed(3)} ${data.units || 'm'}<br>
-            Ice-covered area fraction: ${iceCoverage}% (${values.length.toLocaleString()} of ${totalCells.toLocaleString()} cells)
+            Mean ice thickness: ${mean.toFixed(3)} ${data.units || 'm'} |
+            Max: ${max.toFixed(3)} ${data.units || 'm'}<br>
+            Ice-covered area fraction: ${iceCoverage}%
         `;
     } else {
         overallStatsDiv.innerHTML = `📊 No sea ice detected in ${data.year}`;
