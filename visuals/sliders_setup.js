@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', function () {
     setupYearSlider();
     setupMonthSlider();
     setupTooltips();
+
+    setupPlayPauseButton();
+    setupLoopButton();
+
     loadRememberedYear(); // Load the remembered year and month to initialize the display and data
 });
 
@@ -14,13 +18,7 @@ function setupYearSlider() {
     const yearDisplay = document.getElementById('year-value');
 
     // Update as you drag
-    slider.addEventListener('input', (event) => {
-        const currentYear = getCurrentYear();
-        yearDisplay.textContent = currentYear; // update year selection label
-        
-        loadNewIceData(); // update ice map
-        loadNewMeltData(); // update melt map
-    });
+    slider.addEventListener('input', updateGraphs);
 
     slider.setAttribute('list', 'decades');
 
@@ -45,13 +43,7 @@ function setupMonthSlider() {
     const monthDisplay = document.getElementById('month-value');
 
     // Update as you drag
-    slider.addEventListener('input', (event) => {
-        const currentMonthName = getCurrentMonth(name = true);
-        monthDisplay.textContent = currentMonthName; // update month selection label
-        
-        loadNewIceData(); // update ice map
-        loadNewMeltData(); // update melt map
-    });
+    slider.addEventListener('input', updateGraphs);
 
     slider.setAttribute('list', 'months');
 
@@ -68,6 +60,22 @@ function setupMonthSlider() {
     });
 
     document.body.appendChild(datalist);
+}
+
+function updateGraphs() {
+    const year = getCurrentYear();
+    const monthName = getCurrentMonth(name = true);
+
+    // Update the display values
+    const yearDisplay = document.getElementById('year-value');
+    yearDisplay.textContent = year;
+
+    const monthDisplay = document.getElementById('month-value');
+    monthDisplay.textContent = monthName;
+
+    // Load new data for the selected year and month
+    loadNewIceData();
+    loadNewMeltData();
 }
 
 export function getCurrentYear() {
@@ -108,7 +116,7 @@ function setupTooltips() {
         iceTooltip.id = "ice-tooltip";
         // Put at the front so that its coordinates are relative to the screen rather than whatever container it's in
         document.body.prepend(iceTooltip);
-    }  
+    }
     if (!meltTooltip) {
         meltTooltip = document.createElement('div');
         meltTooltip.classList.add("tooltip");
@@ -130,4 +138,96 @@ function loadRememberedYear() {
 
     loadNewIceData(); // Load data for that year
     loadNewMeltData(); // Load data for that year and month
+}
+
+let isPlaying = false;
+let isLooping = false;
+function setupPlayPauseButton() {
+    const playPauseBtn = document.getElementById('play-pause-btn');
+
+    // Animation state
+    let animationInterval = null;
+    let animationSpeed = 1000; // milliseconds between months (adjust as needed)
+
+    // Function to advance to next month
+    function playThroughMonths() {
+        let currentMonth = getCurrentMonth();
+        let nextMonth = currentMonth + 1;
+
+        if (nextMonth > 12) {
+            nextMonth = 1;
+
+            if (!isLooping) {
+                const currentYear = getCurrentYear();
+                const nextDecade = Math.min(2000, currentYear + 10);
+                const yearSlider = document.getElementById('year-slider');
+                yearSlider.value = nextDecade;
+            }
+        }
+
+        const monthSlider = document.getElementById('month-slider');
+        monthSlider.value = nextMonth; // This will trigger the 'input' event and call updateGraphs()
+        updateGraphs();
+    }
+
+    // Animation control functions
+    function startAnimation() {
+        if (animationInterval) clearInterval(animationInterval);
+        isPlaying = true;
+        animationInterval = setInterval(playThroughMonths, animationSpeed);
+        playPauseBtn.textContent = '⏸ Pause';
+        playPauseBtn.classList.add('active');
+    }
+
+    function pauseAnimation() {
+        if (animationInterval) {
+            clearInterval(animationInterval);
+            animationInterval = null;
+        }
+        isPlaying = false;
+        playPauseBtn.textContent = '▶ Play';
+        playPauseBtn.classList.remove('active');
+    }
+
+    function togglePlayPause() {
+        if (isPlaying) {
+            pauseAnimation();
+        } else {
+            startAnimation();
+        }
+    }
+
+    // Event listener
+    playPauseBtn.addEventListener('click', togglePlayPause);
+
+    // Stop animation if user manually changes year or month
+    const yearSlider = document.getElementById('year-slider');
+    yearSlider.addEventListener('click', function () {
+        if (isPlaying) {
+            pauseAnimation();
+        }
+    })
+
+    const monthSlider = document.getElementById('month-slider');
+    monthSlider.addEventListener('click', function () {
+        if (isPlaying) {
+            pauseAnimation();
+        }
+    })
+};
+
+function setupLoopButton() {
+    const loopBtn = document.getElementById('loop-btn');
+
+    function toggleLoop() {
+        if (isLooping) {
+            isLooping = false;
+            loopBtn.classList.remove('active');
+        } else {
+            isLooping = true;
+            loopBtn.classList.add('active');
+        }
+    }
+
+    loopBtn.addEventListener('click', toggleLoop);
 }

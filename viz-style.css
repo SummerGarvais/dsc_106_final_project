@@ -3,7 +3,7 @@
     margin: 0 auto;
     background-color: white;
     border-radius: 10px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
     padding: 20px;
 }
 
@@ -57,19 +57,45 @@ h1 {
     margin: 0;
 }
 
-.slider-label {
+.slider-label,
+.play-btn {
     font-family: var(--sans, 'Instrument Sans', system-ui, sans-serif);
     font-size: 0.8rem;
     font-weight: 500;
     color: var(--text, #1a1a18);
     background: transparent;
-    border: 1px solid var(--border, rgba(0,0,0,0.09));
+    border: 1px solid var(--border, rgba(0, 0, 0, 0.09));
     padding: 3px 10px;
     border-radius: 3px;
     display: inline-block;
     min-width: 90px;
     text-align: center;
     white-space: nowrap;
+}
+
+.play-btn {
+    padding: 6px;
+    min-width: 32px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.play-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.play-btn:active {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.play-btn.active {
+    background: rgba(0, 0, 0, 0.1);
+}
+.play-btn.active:active {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+#play-pause-btn {
+    min-width: 64px;
 }
 
 .viz-container {
@@ -85,7 +111,7 @@ h1 {
     position: relative;
     width: 100%;
     top: 12vh;
-    border: 1px solid var(--border, rgba(0,0,0,0.09));
+    border: 1px solid var(--border, rgba(0, 0, 0, 0.09));
     border-radius: 5px;
 }
 
@@ -130,10 +156,19 @@ canvas {
     font-size: 18px;
     color: #7f8c8d;
 }
+
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
+
 .loading::after {
     content: '...';
     animation: pulse 1.5s infinite;

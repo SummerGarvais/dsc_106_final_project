@@ -231,7 +231,6 @@ function updateVisualization(data) {
 function updateOverallStats(data) {
     const thicknessData = data.data;
     const overallStatsDiv = document.getElementById('ice-overall-stats');
-    console.log(overallStatsDiv)
 
     if (!overallStatsDiv || !thicknessData) return;
 
