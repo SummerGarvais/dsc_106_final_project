@@ -1,5 +1,6 @@
 import { loadNewIceData } from './ice_logic.js';
 import { loadNewMeltData } from './melt_logic.js';
+import { updateLine } from './volo_logic.js';
 
 document.addEventListener('DOMContentLoaded', function () {
     setupYearSlider();
@@ -136,8 +137,7 @@ function loadRememberedYear() {
     const initialMonthName = getCurrentMonth(name = true); // Get the slider's current value
     monthDisplay.textContent = initialMonthName; // Update display to match
 
-    loadNewIceData(); // Load data for that year
-    loadNewMeltData(); // Load data for that year and month
+    updateGraphs();
 }
 
 let isPlaying = false;
