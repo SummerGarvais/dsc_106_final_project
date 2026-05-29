@@ -75,12 +75,6 @@ export async function loadNewIceData() {
     const currentYear = getCurrentYear();
     const currentMonth = getCurrentMonth();
 
-    // Show loading state
-    const overallStatsDiv = document.getElementById('ice-overall-stats');
-    if (overallStatsDiv) {
-        overallStatsDiv.innerHTML = '📡 Loading sea ice data for ' + currentYear + ', ' + currentMonth + '...';
-    }
-
     try {
         // Fetch the JSON file for this specific year
         const response = await fetch(`./data/ice_data/sea_ice_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json`);

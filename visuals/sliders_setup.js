@@ -1,6 +1,6 @@
 import { loadNewIceData } from './ice_logic.js';
 import { loadNewMeltData } from './melt_logic.js';
-import { updateLine } from './volo_logic.js';
+import { updateSliderLine } from './volo_logic.js';
 
 document.addEventListener('DOMContentLoaded', function () {
     setupYearSlider();
@@ -74,9 +74,11 @@ function updateGraphs() {
     const monthDisplay = document.getElementById('month-value');
     monthDisplay.textContent = monthName;
 
+    console.log('bruh');
     // Load new data for the selected year and month
     loadNewIceData();
     loadNewMeltData();
+    updateSliderLine();
 }
 
 export function getCurrentYear() {
@@ -147,7 +149,7 @@ function setupPlayPauseButton() {
 
     // Animation state
     let animationInterval = null;
-    let animationSpeed = 1000; // milliseconds between months (adjust as needed)
+    let animationSpeed = 250; // milliseconds between months (adjust as needed)
 
     // Function to advance to next month
     function playThroughMonths() {
@@ -166,7 +168,7 @@ function setupPlayPauseButton() {
         }
 
         const monthSlider = document.getElementById('month-slider');
-        monthSlider.value = nextMonth; // This will trigger the 'input' event and call updateGraphs()
+        monthSlider.value = nextMonth; 
         updateGraphs();
     }
 
