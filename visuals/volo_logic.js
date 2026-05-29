@@ -225,9 +225,12 @@ function updateToolTip(event, mouseDateStr) {
     console.log("showing volo tooltip");
 
     const date = d3.timeParse("%Y-%m")(mouseDateStr);
-    const humanReadable = d3.timeFormat("%B %Y")(date);
+    const humanReadableDate = d3.timeFormat("%B %Y")(date);
 
-    tooltip.innerHTML = `${humanReadable}: ${data[mouseDateStr]}`;
+    const scaleFactor = 1.3300564e18;
+    const factorChange = data[mouseDateStr];
+    const relativeChange = scaleFactor * (factorChange - 1);
+    tooltip.innerHTML = `${humanReadableDate}: ${data[mouseDateStr]} (${relativeChange} m^3)`;
 
     // Put tooltip under cursor while on canvas
     tooltip.style.left = tooltipX + 'px';
