@@ -10,10 +10,16 @@ let width = seaIceContainer.clientWidth;
 let height = seaIceContainer.clientHeight;
 console.log(`Sea ice container dimensions: ${width}x${height}`); // Debugging log
 
+// Load background image — handlers must be set before src
+const backgroundImage = new Image();
+backgroundImage.onload = () => initializeSeaIceCanvas();
+backgroundImage.onerror = () => {
+    console.warn('Background image failed to load, using fallback.');
+    initializeSeaIceCanvas();
+};
+backgroundImage.src = './images/ice-canvas-bg.png'; // set LAST
 // Initialize all viz elements when the page loads
 document.addEventListener('DOMContentLoaded', function () {
-    initializeSeaIceCanvas();
-
     new ResizeObserver(() => {
         const newW = seaIceContainer.clientWidth;
         const newH = seaIceContainer.clientHeight;
@@ -130,9 +136,13 @@ function updateVisualization(data) {
     const cellWidth = width / nx;
     const cellHeight = height / ny;
 
-    // Clear canvas
-    ctx.fillStyle = '#f0f0f0';
+    ctx.fillStyle = '#1a3a5c';  // or whatever ocean color you want
     ctx.fillRect(0, 0, width, height);
+
+    if (backgroundImage && backgroundImage.complete && backgroundImage.naturalWidth > 0) {
+        ctx.drawImage(backgroundImage, 0, 0, width, height);
+    }
+
 
     const minThick = Math.min(thicknessData);
     const maxThick = Math.max(thicknessData);
@@ -165,34 +175,66 @@ function updateVisualization(data) {
                 ctx.fillStyle = color;
                 ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
 
-                // Subtle grid lines
-                ctx.strokeStyle = 'rgba(200,200,200,0.2)';
-                ctx.strokeRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
-            } else {
-                // Land or no ice
-                ctx.fillStyle = '#e0e0e0';
-                ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
-            }
+                
+            } 
         }
     }
 
     // Add title and annotations
     const currentYear = getCurrentYear();
     const currentMonthName = getCurrentMonth(name = true);
-
+    
     ctx.font = '500 16px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(26,26,24,0.75)';
 
-    // Set text alignment to center
+    const titleText = `Sea Ice Thickness · ${currentMonthName} ${currentYear}`;
+    const textWidth = ctx.measureText(titleText).width;
+    const padding = 3;
+    const boxX = width / 2 - textWidth / 2 - padding;
+    const boxY = 8;
+    const boxW = textWidth + padding * 2;
+    const boxH = 20;
+
+    // Draw background box
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 4);  // 4px corner radius
+    ctx.fill();
+
+    // Draw title text on top
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle'; // Centers vertically
-    ctx.fillText(`Sea Ice Thickness · ${currentMonthName} ${currentYear}`, width / 2, 20);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+    ctx.fillText(titleText, width / 2, boxY + boxH / 2);
 
     // Draw mini color bar at bottom right
     const miniBarWidth = 140;
     const miniBarHeight = 12;
     const miniBarX = width - miniBarWidth - 10;
     const miniBarY = height - 25;
+
+
+
+    // labeling Artic and Antartic
+
+    // adding a dividing line down the center
+    ctx.beginPath();
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 1.0)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Adding labels for Antartica and Artic Circle
+    ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
+    ctx.fillText(`Artic Circle`, width / 2, (height / 2) - 30);
+    ctx.fillText(`Antartica`, width / 2, (height/2) + 35);
+
+
+
+
+
+
+
 
     // Define the color segments for mini bar
     const segments = [
@@ -216,9 +258,9 @@ function updateVisualization(data) {
 
     // Labels for mini color bar
     ctx.fillStyle = 'rgba(26,26,24,0.55)';
-    ctx.font = '11px system-ui, sans-serif';
-    ctx.fillText('Thinner', miniBarX + 18, miniBarY - 5);
-    ctx.fillText('Thicker', miniBarX + miniBarWidth - 18, miniBarY - 5);
+    ctx.font = '10px system-ui, sans-serif';
+    ctx.fillText('Thin (<0.1m)', miniBarX + 10, miniBarY - 5);
+    ctx.fillText('Thick (>3.0m)', miniBarX + miniBarWidth - 10, miniBarY - 5);
 }
 
 // Update stats for that year at the bottom of the page
