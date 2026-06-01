@@ -2,6 +2,7 @@ import { loadNewIceData } from './ice_logic.js';
 import { loadNewMeltData } from './melt_logic.js';
 import { updateSliderLine } from './volo_logic.js';
 import { loadNewPrecData } from './prec_logic.js';
+import { loadNewHumData } from './hum_logic.js';
 
 document.addEventListener('DOMContentLoaded', function () {
     setupYearSlider();
@@ -81,6 +82,7 @@ function updateGraphs() {
     loadNewMeltData();
     updateSliderLine();
     loadNewPrecData();
+    loadNewHumData();
 }
 
 export function getCurrentYear() {
