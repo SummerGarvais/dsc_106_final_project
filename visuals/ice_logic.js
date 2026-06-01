@@ -226,8 +226,8 @@ function updateVisualization(data) {
 
     // Adding labels for Antartica and Artic Circle
     ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
-    ctx.fillText(`Artic Circle`, width / 2, (height / 2) - 30);
-    ctx.fillText(`Antartica`, width / 2, (height/2) + 35);
+    ctx.fillText(`Arctic Circle`, width / 2, (height / 2) - 30);
+    ctx.fillText(`Antarctica`, width / 2, (height/2) + 35);
 
 
 
