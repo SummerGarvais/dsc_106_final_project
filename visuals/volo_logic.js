@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Load and visualize ocean volume data
 async function initializeVoloCanvas() {
-    console.log("starting volo canvas");
     // Load the JSON data
     data = await d3.json("./data/volo_data/ocean_volume_data.json");
 
@@ -126,7 +125,7 @@ async function initializeVoloCanvas() {
         .attr("r", 4)
         .attr("fill", "#ff6b6b");
 
-        // Create overlay to capture mouse movements
+    // Create overlay to capture mouse movements
     const overlay = svg.append("rect")
         .attr("class", "overlay")
         .attr("width", width)
@@ -159,8 +158,9 @@ async function initializeVoloCanvas() {
     overlay.on('mousemove', handleMouseMove);
     overlay.on('mouseleave', () => {
         const tooltip = document.querySelector("#volo-tooltip");
-        tooltip.style.visibility = 'hidden';
-        console.log("hiding volo tooltip");
+        if (tooltip) {
+            tooltip.style.visibility = 'hidden';
+        }
     });
 }
 
@@ -175,8 +175,6 @@ function handleMouseMove(event) {
     }
 
     const mouseDateStr = findClosestDate(mouseX);
-    console.log("closest point:");
-    console.log(mouseDateStr);
 
     updateToolTip(event, mouseDateStr);
     updateHoverLine(mouseDateStr);
@@ -186,8 +184,6 @@ function updateHoverLine(mouseDateStr) {
     // Get pixel coordinates
     const x = xScale(new Date(mouseDateStr));
     const y = yScale(data[mouseDateStr]);
-
-    console.log(x, y);
 
     // Update hover vertical line
     svg.select('.hover-line')
@@ -222,7 +218,6 @@ function updateToolTip(event, mouseDateStr) {
         document.body.prepend(tooltip);
     }
     tooltip.style.visibility = 'visible';
-    console.log("showing volo tooltip");
 
     const date = d3.timeParse("%Y-%m")(mouseDateStr);
     const humanReadableDate = d3.timeFormat("%B %Y")(date);
@@ -261,8 +256,6 @@ export async function updateSliderLine() {
         .ease(d3.easeCubicInOut)
         .attr('x1', x)
         .attr('x2', x);
-    
-    console.log(x, y);
 
     svg.select('.current-point')
         .transition()

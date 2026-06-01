@@ -16,6 +16,7 @@
   <script src="./visuals/ice_logic.js" defer type="module"></script>
   <script src="./visuals/melt_logic.js" defer type="module"></script>
   <script src="./visuals/volo_logic.js" defer type="module"></script>
+  <script src="./visuals/prec_logic.js" defer type="module"></script>
 </head>
 
 <body>
@@ -63,20 +64,21 @@
         <p class="step-index">01 &nbsp;/&nbsp; Sea Ice Thickness</p>
         <h2>Initial Prototype Writeup</h2>
         <p>
-          So far we have implemented a rough design of the website with our main mechanism of interaction, 
-          the ability to easily change the year and month, being implemented and functional. 
-          We haven’t implemented specific texts relating to our ideas, but through titles 
-          and placeholder texts we have been able to sketch a rough flow of ideas for a user 
-          reading our visualization. A feature to keep the slider for interaction in a constant 
-          place at the top of the page during scrolling makes interacting consistent and continuous. 
-          We have further used our section titles as ways to sketch out what potential interactions and visualizations could happen.
+          So far we have implemented a rough design of the website with our main mechanism of interaction,
+          the ability to easily change the year and month, being implemented and functional.
+          We haven’t implemented specific texts relating to our ideas, but through titles
+          and placeholder texts we have been able to sketch a rough flow of ideas for a user
+          reading our visualization. A feature to keep the slider for interaction in a constant
+          place at the top of the page during scrolling makes interacting consistent and continuous.
+          We have further used our section titles as ways to sketch out what potential interactions and visualizations
+          could happen.
         </p>
         <p>
-          Given our current prototype we find the challenge being added more nuanced interactions and 
-          examples to support our narrative. With the general time slider we can already provide lots 
-          of unique, yet less specific, information. Searching for specific examples in regions or time 
-          periods that correlate to certain policy or technology changes would be one task that could 
-          lead us to this. So designating time for finding specific examples within the dataset, world, 
+          Given our current prototype we find the challenge being added more nuanced interactions and
+          examples to support our narrative. With the general time slider we can already provide lots
+          of unique, yet less specific, information. Searching for specific examples in regions or time
+          periods that correlate to certain policy or technology changes would be one task that could
+          lead us to this. So designating time for finding specific examples within the dataset, world,
           and potentially other project 3 data sets to further explore ideas serves as a major step going forward.
         </p>
       </div>
@@ -185,7 +187,17 @@
 
   </main>
 
+  <!-- Testing site for new graphs, feel free to put these elsewhere! -->
+  <div class="new-graph-gay-baby-jail">
   <div id="volo-container" class="visualization"></div>
+
+  <div class="viz-frame">
+    <div id="prec-viz-and-stats" class="viz-container">
+      <div id="prec-container" class="visualization"></div>
+      <div id="prec-overall-stats" class="viz-stats"></div>
+    </div>
+  </div>
+  </div>
 
   <!-- ═══ FOOTER ═══ -->
   <footer class="footer">
@@ -198,4 +210,5 @@
   <div id="melt-point-stats" style="display:none;"></div>
 
 </body>
+
 </html>

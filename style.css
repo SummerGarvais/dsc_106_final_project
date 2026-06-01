@@ -301,3 +301,12 @@ h1 {
   font-weight: 400;
   color: var(--text);
 }
+
+.new-graph-gay-baby-jail {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  width: 50%;
+  margin: auto;
+}
