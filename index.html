@@ -16,6 +16,7 @@
   <script src="./visuals/ice_logic.js" defer type="module"></script>
   <script src="./visuals/melt_logic.js" defer type="module"></script>
   <script src="./visuals/volo_logic.js" defer type="module"></script>
+  <script src="./visuals/prec_logic.js" defer type="module"></script>
 </head>
 
 <body>
@@ -168,7 +169,17 @@
 
   </main>
 
+  <!-- Testing site for new graphs, feel free to put these elsewhere! -->
+  <div class="new-graph-gay-baby-jail">
   <div id="volo-container" class="visualization"></div>
+
+  <div class="viz-frame">
+    <div id="prec-viz-and-stats" class="viz-container">
+      <div id="prec-container" class="visualization"></div>
+      <div id="prec-overall-stats" class="viz-stats"></div>
+    </div>
+  </div>
+  </div>
 
   <!-- ═══ FOOTER ═══ -->
   <footer class="footer">
@@ -181,4 +192,5 @@
   <div id="melt-point-stats" style="display:none;"></div>
 
 </body>
+
 </html>
