@@ -272,9 +272,11 @@ function updateOverallStats(data) {
         const currentYear = getCurrentYear();
         overallStatsDiv.innerHTML = `
             <strong>Statistics for ${currentMonthName} ${currentYear}:</strong><br>
-            Mean Specific Humidity: ${mean.toFixed(5)} ${data.units || 'm'} — 
-            Max: ${max.toFixed(5)} ${data.units} — 
-            Min: ${min.toFixed(5)} ${data.units}<br>
+            Mean Specific Humidity: ${mean.toFixed(5)} — 
+            Max: ${max.toFixed(5)} — 
+            Min: ${min.toFixed(5)}<br>
+
+            (Note: Specific humidity values are in kg/kg, i.e. a ratio of water vapor mass to total air mass. Values above 0.020 are considered very humid.)
         `;
     } else {
         overallStatsDiv.innerHTML = `📊 No specific humidity data detected in ${data.year}`;
@@ -327,7 +329,7 @@ function updateToolTip(event, meltFlux) {
     tooltip.style.visibility = 'visible';
 
     if (meltFlux !== null && !isNaN(meltFlux)) {
-        tooltip.innerHTML = `❄️ near-surface specific humidity: ${meltFlux.toFixed(5)} ${currentData.units}`;
+        tooltip.innerHTML = `❄️ near-surface specific humidity: ${meltFlux.toFixed(5)}`;
     } else {
         tooltip.innerHTML = `🌊 No specific humidity data`;
     }
