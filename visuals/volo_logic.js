@@ -4,11 +4,13 @@ import { getCurrentYear, getCurrentMonth } from './sliders_setup.js';
 let svg = null;
 let data = null;
 let timeSeriesDataGlobal = null;
+let seaLevelDataGlobal = null;
 let xScale = null;
 let yScale = null;
+let seaLevelYScale = null;
 
 // Set up dimensions
-const margin = { top: 20, right: 30, bottom: 50, left: 60 };
+const margin = { top: 20, right: 80, bottom: 50, left: 110 };
 const width = 900 - margin.left - margin.right;
 const height = 500 - margin.top - margin.bottom;
 
@@ -20,12 +22,15 @@ document.addEventListener('DOMContentLoaded', function () {
 async function initializeVoloCanvas() {
     // Load the JSON data
     data = await d3.json("./data/volo_data/ocean_volume_data.json");
+    const seaLevelRaw = await d3.text("./data/volo_data/global_mean_sea_level_anomalies.csv");
 
     // Convert the object to an array of {date, value} pairs
     timeSeriesDataGlobal = Object.entries(data).map(([date, value]) => ({
         date: new Date(date),
         value: parseFloat(value)
     })).sort((a, b) => a.date - b.date);
+
+    seaLevelDataGlobal = parseSeaLevelData(seaLevelRaw).filter(d => d.date <= xScaleDomainEnd(data));
 
     // Create SVG container
     svg = d3.select("#volo-container")
@@ -44,11 +49,17 @@ async function initializeVoloCanvas() {
         .domain(d3.extent(timeSeriesDataGlobal, d => d.value))
         .range([height, 0]);
 
+    seaLevelYScale = d3.scaleLinear()
+        .domain(d3.extent(seaLevelDataGlobal, d => d.value))
+        .nice()
+        .range([height, 0]);
+
     // Add axes
     const xAxis = d3.axisBottom(xScale)
         .tickFormat(d3.timeFormat("%Y-%m"));
 
     const yAxis = d3.axisLeft(yScale);
+    const seaLevelYAxis = d3.axisRight(seaLevelYScale);
 
     svg.append("g")
         .attr("transform", `translate(0,${height})`)
@@ -59,6 +70,12 @@ async function initializeVoloCanvas() {
 
     svg.append("g")
         .call(yAxis);
+
+    svg.append("g")
+        .attr("transform", `translate(${width},0)`)
+        .call(seaLevelYAxis)
+        .selectAll("text")
+        .style("fill", "#c0392b");
 
     // Add axis labels
     svg.append("text")
@@ -71,15 +88,27 @@ async function initializeVoloCanvas() {
     svg.append("text")
         .attr("transform", "rotate(-90)")
         .attr("x", -height / 2)
-        .attr("y", -40)
+        .attr("y", -88)
         .attr("text-anchor", "middle")
         .style("fill", "#666")
         .text("Ocean Volume");
+
+    svg.append("text")
+        .attr("transform", "rotate(90)")
+        .attr("x", height / 2)
+        .attr("y", -width - 58)
+        .attr("text-anchor", "middle")
+        .style("fill", "#c0392b")
+        .text("Aggregate Sea Level Change (mm)");
 
     // Graph time series data
     const line = d3.line()
         .x(d => xScale(d.date))
         .y(d => yScale(d.value));
+
+    const seaLevelLine = d3.line()
+        .x(d => xScale(d.date))
+        .y(d => seaLevelYScale(d.value));
 
     svg.append("path")
         .datum(timeSeriesDataGlobal)
@@ -88,6 +117,16 @@ async function initializeVoloCanvas() {
         .style("fill", "none")
         .style("stroke", "#3498db")
         .style("stroke-width", 2);
+
+    svg.append("path")
+        .datum(seaLevelDataGlobal)
+        .attr("class", "sea-level-line")
+        .attr("d", seaLevelLine)
+        .style("fill", "none")
+        .style("stroke", "#c0392b")
+        .style("stroke-width", 2.5);
+
+    addLegend();
 
     // Add title
     svg.append("text")
@@ -99,8 +138,9 @@ async function initializeVoloCanvas() {
         .text("Ocean Volume Over Time");
 
     // Find the current data point (latest date)
-    const initialDate = new Date("1850-01"); // initial placeholder date
-    const initialValue = data[initialDate];
+    const initialDateStr = "1850-01";
+    const initialDate = new Date(initialDateStr); // initial placeholder date
+    const initialValue = data[initialDateStr];
 
     // Draw vertical line at current date
     const currentX = xScale(initialDate);
@@ -154,6 +194,15 @@ async function initializeVoloCanvas() {
         .attr("stroke", "white")
         .attr("stroke-width", 2);
 
+    svg.append("circle")
+        .attr("class", "sea-level-hover-point")
+        .attr("r", 5)
+        .attr("fill", "#c0392b")
+        .attr("stroke", "white")
+        .attr("stroke-width", 2)
+        .style("opacity", 0)
+        .style("pointer-events", "none");
+
     // Add hover event listener
     overlay.on('mousemove', handleMouseMove);
     overlay.on('mouseleave', () => {
@@ -161,7 +210,64 @@ async function initializeVoloCanvas() {
         if (tooltip) {
             tooltip.style.visibility = 'hidden';
         }
+        svg.select('.hover-line').style('opacity', 0);
+        svg.select('.hover-point').style('opacity', 0);
+        svg.select('.sea-level-hover-point').style('opacity', 0);
     });
+}
+
+function parseSeaLevelData(rawCsv) {
+    const rows = d3.csvParseRows(rawCsv);
+    const dataStartIndex = rows.findIndex(row => row[0] === "data") + 2;
+    const dataEndIndex = rows.findIndex(row => row[0] === "end_data");
+
+    return rows.slice(dataStartIndex, dataEndIndex)
+        .map(row => ({
+            date: new Date(`${row[0]}-01`),
+            value: parseFloat(row[1])
+        }))
+        .filter(d => Number.isFinite(d.value) && d.value < 1e19);
+}
+
+function xScaleDomainEnd(volumeData) {
+    const latestDate = d3.max(Object.keys(volumeData), date => new Date(date));
+    return latestDate;
+}
+
+function addLegend() {
+    const legend = svg.append("g")
+        .attr("class", "volo-legend")
+        .attr("transform", "translate(10, 12)");
+
+    legend.append("line")
+        .attr("x1", 0)
+        .attr("x2", 24)
+        .attr("y1", 0)
+        .attr("y2", 0)
+        .attr("stroke", "#3498db")
+        .attr("stroke-width", 2);
+
+    legend.append("text")
+        .attr("x", 32)
+        .attr("y", 4)
+        .style("font-size", "12px")
+        .style("fill", "#666")
+        .text("Ocean volume");
+
+    legend.append("line")
+        .attr("x1", 150)
+        .attr("x2", 174)
+        .attr("y1", 0)
+        .attr("y2", 0)
+        .attr("stroke", "#c0392b")
+        .attr("stroke-width", 2.5);
+
+    legend.append("text")
+        .attr("x", 182)
+        .attr("y", 4)
+        .style("font-size", "12px")
+        .style("fill", "#666")
+        .text("CMIP6 sea level");
 }
 
 function handleMouseMove(event) {
@@ -184,6 +290,7 @@ function updateHoverLine(mouseDateStr) {
     // Get pixel coordinates
     const x = xScale(new Date(mouseDateStr));
     const y = yScale(data[mouseDateStr]);
+    const seaLevelPoint = findSeaLevelPoint(mouseDateStr);
 
     // Update hover vertical line
     svg.select('.hover-line')
@@ -200,6 +307,15 @@ function updateHoverLine(mouseDateStr) {
         .attr('cx', x)
         .attr('cy', y)
         .style('opacity', 1);
+
+    if (seaLevelPoint) {
+        svg.select('.sea-level-hover-point')
+            .transition()
+            .duration(10)
+            .attr('cx', xScale(seaLevelPoint.date))
+            .attr('cy', seaLevelYScale(seaLevelPoint.value))
+            .style('opacity', 1);
+    }
 }
 
 
@@ -225,7 +341,12 @@ function updateToolTip(event, mouseDateStr) {
     const scaleFactor = 1.3300564e18;
     const factorChange = data[mouseDateStr];
     const relativeChange = scaleFactor * (factorChange - 1);
-    tooltip.innerHTML = `${humanReadableDate}: ${data[mouseDateStr]} (${relativeChange} m^3)`;
+    const seaLevelPoint = findSeaLevelPoint(mouseDateStr);
+    const seaLevelText = seaLevelPoint
+        ? `<br>CMIP6 sea level: ${seaLevelPoint.value.toFixed(2)} mm`
+        : "";
+
+    tooltip.innerHTML = `${humanReadableDate}: ${data[mouseDateStr]} (${relativeChange.toExponential(3)} m^3)${seaLevelText}`;
 
     // Put tooltip under cursor while on canvas
     tooltip.style.left = tooltipX + 'px';
@@ -263,4 +384,9 @@ export async function updateSliderLine() {
         .ease(d3.easeCubicInOut)
         .attr('cx', x)
         .attr('cy', y);
+}
+
+function findSeaLevelPoint(dateStr) {
+    const year = new Date(dateStr).getFullYear();
+    return seaLevelDataGlobal?.find(d => d.date.getFullYear() === year);
 }
