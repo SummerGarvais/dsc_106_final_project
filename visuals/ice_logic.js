@@ -186,7 +186,7 @@ function updateVisualization(data) {
     
     ctx.font = '500 16px system-ui, sans-serif';
 
-    const titleText = `Sea Ice Thickness · ${currentMonthName} ${currentYear}`;
+    const titleText = `Sea-Ice Thickness · ${currentMonthName} ${currentYear}`;
     const textWidth = ctx.measureText(titleText).width;
     const padding = 3;
     const boxX = width / 2 - textWidth / 2 - padding;
