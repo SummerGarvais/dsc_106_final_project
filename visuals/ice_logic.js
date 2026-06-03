@@ -1,24 +1,25 @@
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 import { getCurrentYear, getCurrentMonth } from './sliders_setup.js';
+import { getCached, setCached, urlFor, prefetch } from './data_cache.js';
 
-// Global variables
+const MONTH_NAMES = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+
 let currentData = null;
 let colorScale = null;
 
 const seaIceContainer = document.getElementById('sea-ice-container');
 let width = seaIceContainer.clientWidth;
 let height = seaIceContainer.clientHeight;
-console.log(`Sea ice container dimensions: ${width}x${height}`); // Debugging log
 
-// Load background image — handlers must be set before src
 const backgroundImage = new Image();
 backgroundImage.onload = () => initializeSeaIceCanvas();
 backgroundImage.onerror = () => {
     console.warn('Background image failed to load, using fallback.');
     initializeSeaIceCanvas();
 };
-backgroundImage.src = './images/ice-canvas-bg.png'; // set LAST
-// Initialize all viz elements when the page loads
+backgroundImage.src = './images/ice-canvas-bg.png';
+
 document.addEventListener('DOMContentLoaded', function () {
     new ResizeObserver(() => {
         const newW = seaIceContainer.clientWidth;
@@ -28,22 +29,26 @@ document.addEventListener('DOMContentLoaded', function () {
         height = newH;
         const canvas = document.getElementById('ice-canvas');
         if (canvas) {
-            canvas.width = width;
-            canvas.height = height;
-            if (currentData) updateVisualization(currentData);
+            resizeCanvas(canvas);
+            if (currentData) paintFrame(currentData.data, getCurrentYear(), getCurrentMonth(), currentData.units);
         }
     }).observe(seaIceContainer);
 });
 
+function resizeCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(width * dpr));
+    canvas.height = Math.max(1, Math.round(height * dpr));
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
 function initializeSeaIceCanvas() {
-    // Create canvas
+    width = seaIceContainer.clientWidth;
+    height = seaIceContainer.clientHeight;
+
     const canvas = document.createElement('canvas');
     canvas.id = 'ice-canvas';
-    canvas.width = width;
-    canvas.height = height;
-    canvas.style.cursor = 'crosshair';
-    canvas.style.border = '1px solid #ddd';
-    canvas.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
 
     const vizDiv = document.getElementById('sea-ice-container');
     if (vizDiv) {
@@ -51,61 +56,49 @@ function initializeSeaIceCanvas() {
         vizDiv.appendChild(canvas);
     }
 
-    // Add hover event listener
+    resizeCanvas(canvas);
+
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseleave', () => {
         const tooltip = document.querySelector("#ice-tooltip");
-        tooltip.style.visibility = 'hidden';
-        console.log("hiding tooltip");
-
+        if (tooltip) tooltip.style.visibility = 'hidden';
         const pointStatsDiv = document.getElementById('ice-point-stats');
         if (pointStatsDiv) {
             pointStatsDiv.innerHTML = `
-                📍 <strong>Location:</strong> No Data | 
+                📍 <strong>Location:</strong> No Data |
                 <strong>Ice Thickness:</strong> N/A <br>
                 <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
             `;
         }
     });
 
-    // Create color scale
     colorScale = d3.scaleSequentialLog()
         .domain([0.01, 5])
         .interpolator(d3.interpolateBlues);
 
-    // Create colorbar
-    createColorbar();
+    buildLegend();
 }
 
 export async function loadNewIceData() {
-    const currentYear = getCurrentYear();
-    const currentMonth = getCurrentMonth();
+    const year = getCurrentYear();
+    const month = getCurrentMonth();
+
+    const cached = getCached('ice', year, month);
+    if (cached) {
+        currentData = cached;
+        paintFrame(cached.data, year, month, cached.units);
+        return;
+    }
 
     try {
-        // Fetch the JSON file for this specific year
-        const response = await fetch(`./data/ice_data/sea_ice_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        const response = await fetch(urlFor('ice', year, month));
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const newData = await response.json();
-        // Update global variable with currently used dataset
+        setCached('ice', year, month, newData);
         currentData = newData;
-
-        // Update the visualization
-        updateVisualization(newData);
-
-        // Update statistics
-        updateOverallStats(newData);
-
+        paintFrame(newData.data, year, month, newData.units);
     } catch (error) {
-        console.error(`Error loading data for ${currentYear}:`, error);
-        if (overallStatsDiv) {
-            overallStatsDiv.innerHTML = `❌ Error loading data for ${currentYear}, ${currentMonth}. Make sure sea_ice_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json exists.`;
-        }
-
-        // Show error on canvas
+        console.error(`Error loading data for ${year}:`, error);
         const canvas = document.getElementById('ice-canvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
@@ -113,110 +106,127 @@ export async function loadNewIceData() {
             ctx.fillRect(0, 0, width, height);
             ctx.fillStyle = '#ff0000';
             ctx.font = '16px Arial';
-            ctx.fillText(`Failed to load data for ${currentYear}, ${currentMonth}`, width / 2 - 150, height / 2);
+            ctx.fillText(`Failed to load data for ${year}, ${month}`, width / 2 - 150, height / 2);
         }
     }
 }
 
-// Updates canvas with sea ice data
-function updateVisualization(data) {
+// Continuous-playback entry point
+export function renderIceInterpolated(yA, mA, yB, mB, f) {
+    const cv = document.getElementById('ice-canvas');
+    if (cv && !canvasVisible(cv)) return;
+
+    const a = getCached('ice', yA, mA);
+    if (!a) { prefetch('ice', yA, mA); return; }
+    const b = getCached('ice', yB, mB);
+    if (!b) prefetch('ice', yB, mB);
+
+    currentData = a; 
+    const label = f < 0.5 ? { y: yA, m: mA } : { y: yB, m: mB };
+    paintFrame(a.data, label.y, label.m, a.units, { skipIfHidden: true, b: (b && f > 0) ? b.data : null, f });
+}
+
+// Discrete thickness levels as RGB so we can write straight into ImageData
+const ICE_LEVELS = [
+    [0.1, [240, 248, 255]], [0.5, [198, 219, 239]], [1.0, [158, 202, 225]],
+    [1.5, [107, 174, 214]], [2.0, [66, 146, 198]], [3.0, [33, 113, 181]],
+];
+const ICE_TOP = [8, 69, 148];
+function iceRGB(value) {
+    for (let k = 0; k < ICE_LEVELS.length; k++) if (value <= ICE_LEVELS[k][0]) return ICE_LEVELS[k][1];
+    return ICE_TOP;
+}
+
+const OCEAN = '#0f1d2a';
+
+let offCanvas = null, offCtx = null, offImg = null, offW = 0, offH = 0;
+function ensureOffscreen(nx, ny) {
+    if (!offCanvas) { offCanvas = document.createElement('canvas'); offCtx = offCanvas.getContext('2d'); }
+    if (offW !== nx || offH !== ny) {
+        offCanvas.width = nx; offCanvas.height = ny;
+        offImg = offCtx.createImageData(nx, ny);
+        offW = nx; offH = ny;
+    }
+}
+function canvasVisible(canvas) {
+    const r = canvas.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    return r.bottom > 0 && r.top < vh;
+}
+
+// Single complete, opaque repaint via ImageData blit
+function paintFrame(values, year, month, units, opts = {}) {
     const canvas = document.getElementById('ice-canvas');
-    if (!canvas) return;
+    if (!canvas || !values || values.length === 0) return;
+    // During continuous playback, don't burn time rasterizing maps that aren't on screen
+    if (opts.skipIfHidden && !canvasVisible(canvas)) return;
 
     const ctx = canvas.getContext('2d');
-    const thicknessData = data.data;
-
-    if (!thicknessData || thicknessData.length === 0) {
-        console.error('No data available');
-        return;
-    }
-
-    const nx = thicknessData[0].length;
-    const ny = thicknessData.length;
-    const cellWidth = width / nx;
-    const cellHeight = height / ny;
-
-    ctx.fillStyle = '#1a3a5c';  // or whatever ocean color you want
-    ctx.fillRect(0, 0, width, height);
-
-    if (backgroundImage && backgroundImage.complete && backgroundImage.naturalWidth > 0) {
-        ctx.drawImage(backgroundImage, 0, 0, width, height);
-    }
+    const ny = values.length;
+    const nx = values[0].length;
 
 
-    const minThick = Math.min(thicknessData);
-    const maxThick = Math.max(thicknessData);
-    // Draw each grid cell
-    for (let i = 0; i < nx; i++) {
-        for (let j = 0; j < ny; j++) {
-            let flipped_x = nx - i - 1;
-            let flipped_y = ny - j - 1;
-            const value = thicknessData[flipped_y][flipped_x];
+    const B = opts.b || null;
+    const f = opts.f || 0;
 
+    ensureOffscreen(nx, ny);
+    const d = offImg.data;
+    for (let py = 0; py < ny; py++) {
+        const aRow = values[ny - py - 1];
+        const bRow = B ? B[ny - py - 1] : null;
+        for (let px = 0; px < nx; px++) {
+            const ai = nx - px - 1;
+            let value = aRow[ai];
+            if (bRow) {
+                const bv = bRow[ai];
+                const aBad = value === null || isNaN(value);
+                const bBad = bv === null || isNaN(bv);
+                if (aBad && bBad) value = NaN;
+                else if (aBad) value = bv;
+                else if (!bBad) value = value + (bv - value) * f;
+            }
+            const o = (py * nx + px) * 4;
             if (value !== null && !isNaN(value) && value > 0) {
-                // 7 discrete color levels
-                let color;
-                if (value <= 0.1) {
-                    color = '#f0f8ff';  // Level 1: Very thin ice
-                } else if (value <= 0.5) {
-                    color = '#c6dbef';  // Level 2: Thin ice
-                } else if (value <= 1.0) {
-                    color = '#9ecae1';  // Level 3: Moderate ice
-                } else if (value <= 1.5) {
-                    color = '#6baed6';  // Level 4: Medium ice
-                } else if (value <= 2.0) {
-                    color = '#4292c6';  // Level 5: Thick ice
-                } else if (value <= 3.0) {
-                    color = '#2171b5';  // Level 6: Very thick ice
-                } else {
-                    color = '#084594';  // Level 7: Extremely thick ice
-                }
-
-                ctx.fillStyle = color;
-                ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
-
-                
-            } 
+                const c = iceRGB(value);
+                d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+            } else {
+                d[o + 3] = 0; 
+            }
         }
     }
+    offCtx.putImageData(offImg, 0, 0);
 
-    // Add title and annotations
-    const currentYear = getCurrentYear();
-    const currentMonthName = getCurrentMonth(name = true);
-    
-    ctx.font = '500 16px system-ui, sans-serif';
+    ctx.fillStyle = OCEAN;
+    ctx.fillRect(0, 0, width, height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(offCanvas, 0, 0, width, height);
 
-    const titleText = `Sea-Ice Thickness · ${currentMonthName} ${currentYear}`;
+    drawAnnotations(ctx, year, month);
+}
+
+function drawAnnotations(ctx, year, month) {
+    const monthName = MONTH_NAMES[month] || month;
+
+    const titleSize = Math.max(11, Math.min(16, width / 28));
+    ctx.font = `500 ${titleSize}px system-ui, sans-serif`;
+    const titleText = `Sea-Ice Thickness · ${monthName} ${year}`;
     const textWidth = ctx.measureText(titleText).width;
     const padding = 3;
     const boxX = width / 2 - textWidth / 2 - padding;
     const boxY = 8;
     const boxW = textWidth + padding * 2;
-    const boxH = 20;
+    const boxH = titleSize + 6;
 
-    // Draw background box
     ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
     ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxW, boxH, 4);  // 4px corner radius
+    ctx.roundRect(boxX, boxY, boxW, boxH, 4);
     ctx.fill();
 
-    // Draw title text on top
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
     ctx.fillText(titleText, width / 2, boxY + boxH / 2);
 
-    // Draw mini color bar at bottom right
-    const miniBarWidth = 140;
-    const miniBarHeight = 12;
-    const miniBarX = width - miniBarWidth - 10;
-    const miniBarY = height - 25;
-
-
-
-    // labeling Artic and Antartic
-
-    // adding a dividing line down the center
     ctx.beginPath();
     ctx.moveTo(0, height / 2);
     ctx.lineTo(width, height / 2);
@@ -224,87 +234,32 @@ function updateVisualization(data) {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Adding labels for Antartica and Artic Circle
+    const labelSize = Math.max(9, Math.min(16, width / 32));
+    ctx.font = `${labelSize}px system-ui, sans-serif`;
     ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
-    ctx.fillText(`Arctic Circle`, width / 2, (height / 2) - 30);
-    ctx.fillText(`Antarctica`, width / 2, (height/2) + 35);
-
-
-
-
-
-
-
-
-    // Define the color segments for mini bar
-    const segments = [
-        { color: '#f0f8ff', width: miniBarWidth / 7 },  // 0-0.1m
-        { color: '#c6dbef', width: miniBarWidth / 7 },  // 0.1-0.5m
-        { color: '#9ecae1', width: miniBarWidth / 7 },  // 0.5-1.0m
-        { color: '#6baed6', width: miniBarWidth / 7 },  // 1.0-1.5m
-        { color: '#4292c6', width: miniBarWidth / 7 },  // 1.5-2.0m
-        { color: '#2171b5', width: miniBarWidth / 7 },  // 2.0-3.0m
-        { color: '#084594', width: miniBarWidth / 7 }   // 3.0+m
-    ];
-
-    for (let i = 0; i < segments.length; i++) {
-        ctx.fillStyle = segments[i].color;
-        ctx.fillRect(miniBarX + (i * segments[i].width), miniBarY, segments[i].width, miniBarHeight);
-    }
-
-    // Border around mini color bar
-    ctx.strokeStyle = '#999';
-    ctx.strokeRect(miniBarX, miniBarY, miniBarWidth, miniBarHeight);
-
-    // Labels for mini color bar
-    ctx.fillStyle = 'rgba(26,26,24,0.55)';
-    ctx.font = '10px system-ui, sans-serif';
-    ctx.fillText('Thin (<0.1m)', miniBarX + 10, miniBarY - 5);
-    ctx.fillText('Thick (>3.0m)', miniBarX + miniBarWidth - 10, miniBarY - 5);
+    ctx.fillText(`Arctic Circle`, width / 2, (height / 2) - labelSize - 6);
+    ctx.fillText(`Antarctica`, width / 2, (height / 2) + labelSize + 6);
 }
 
-// Update stats for that year at the bottom of the page
-function updateOverallStats(data) {
-    const thicknessData = data.data;
-    const overallStatsDiv = document.getElementById('ice-overall-stats');
-
-    if (!overallStatsDiv || !thicknessData) return;
-
-    // Flatten the array and filter valid values
-    const values = [];
-    for (let i = 0; i < thicknessData.length; i++) {
-        for (let j = 0; j < thicknessData[i].length; j++) {
-            const val = thicknessData[i][j];
-            if (val !== null && !isNaN(val) && val > 0) {
-                values.push(val);
-            }
-        }
-    }
-
-    if (values.length > 0) {
-        const mean = values.reduce((a, b) => a + b, 0) / values.length;
-        const max = Math.max(...values);
-        const min = Math.min(...values);
-
-        // Calculate ice coverage percentage
-        const totalCells = thicknessData.length * thicknessData[0].length;
-        const iceCoverage = (values.length / totalCells * 100).toFixed(1);
-
-        const currentMonthName = getCurrentMonth(name = true);
-        const currentYear = getCurrentYear();
-        overallStatsDiv.innerHTML = `
-            <strong>Statistics for ${currentMonthName} ${currentYear}:</strong><br>
-            Mean ice thickness: ${mean.toFixed(3)} ${data.units || 'm'} —
-            Max: ${max.toFixed(3)} ${data.units || 'm'} —
-            Ice-covered area fraction: ${iceCoverage}%
-        `;
-    } else {
-        overallStatsDiv.innerHTML = `📊 No sea ice detected in ${data.year}`;
-    }
+// Static discrete legend with numeric thickness ranges (built once)
+function buildLegend() {
+    const div = document.getElementById('ice-overall-stats');
+    if (!div) return;
+    const levels = [
+        ['#f0f8ff', '0–0.1'], ['#c6dbef', '0.1–0.5'], ['#9ecae1', '0.5–1'],
+        ['#6baed6', '1–1.5'], ['#4292c6', '1.5–2'], ['#2171b5', '2–3'], ['#084594', '3+'],
+    ];
+    div.className = 'viz-stats';
+    div.innerHTML = `<div class="legend">
+        <span class="legend-label">Sea-ice thickness (m)</span>
+        <span class="sw"><i style="background:${OCEAN}"></i>no ice (ocean/land)</span>
+        ${levels.map(([c, r]) => `<span class="sw"><i style="background:${c}"></i>${r}</span>`).join('')}
+    </div>`;
 }
 
 function handleMouseMove(event) {
     if (!currentData) return;
+    if ('ontouchstart' in window) return;
 
     const canvas = document.getElementById('ice-canvas');
     if (!canvas) return;
@@ -318,91 +273,58 @@ function handleMouseMove(event) {
 
     const nx = thicknessData[0].length;
     const ny = thicknessData.length;
-
-    const i = Math.floor(mouseX / width * nx);
-    const j = Math.floor(mouseY / height * ny);
+    const i = Math.floor(mouseX / rect.width * nx);
+    const j = Math.floor(mouseY / rect.height * ny);
 
     if (i >= 0 && i < nx && j >= 0 && j < ny) {
-        let flipped_x = nx - i - 1;
-        let flipped_y = ny - j - 1;
-        const iceDepth = thicknessData[flipped_y][flipped_x];
-
+        const iceDepth = thicknessData[ny - j - 1][nx - i - 1];
         updateToolTip(event, iceDepth);
         updatePointStats(i, j, iceDepth);
     }
 }
 
 function updateToolTip(event, iceDepth) {
-    // Create a tooltip-like display right under the cursor
-    const tooltipX = event.pageX;
-    const tooltipY = event.pageY;
-
-    // Create tooltip if one doesn't exist yet
     let tooltip = document.querySelector("#ice-tooltip");
     if (!tooltip) {
         tooltip = document.createElement('div');
         tooltip.classList.add("tooltip");
         tooltip.id = "ice-tooltip";
-        // Put at the front so that its coordinates are relative to the screen rather than whatever container it's in
         document.body.prepend(tooltip);
     }
     tooltip.style.visibility = 'visible';
-    console.log("showing tooltip");
-
     if (iceDepth !== null && !isNaN(iceDepth) && iceDepth > 0) {
         tooltip.innerHTML = `❄️ Sea Ice: ${iceDepth.toFixed(3)} ${currentData.units || 'm'}`;
     } else {
         tooltip.innerHTML = `🌊 No Sea Ice / Land`;
     }
-
-    // Put tooltip under cursor while on canvas
-    tooltip.style.left = tooltipX + 'px';
-    tooltip.style.top = tooltipY + 'px';
+    tooltip.style.left = event.pageX + 'px';
+    tooltip.style.top = event.pageY + 'px';
 }
 
 function updatePointStats(i, j, iceDepth) {
-    // Update point stats at bottom of the document with data of cell being hovered over
     const pointStatsDiv = document.getElementById('ice-point-stats');
     if (!pointStatsDiv) return;
-
-    if (iceDepth !== null && !isNaN(iceDepth) && iceDepth > 0) {
-        pointStatsDiv.innerHTML = `
-            📍 <strong>Location:</strong> (${i}, ${j}) | 
-            <strong>Ice Thickness:</strong> ${iceDepth.toFixed(3)} ${currentData.units || 'm'}<br>
-            <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
-        `;
-    } else {
-        pointStatsDiv.innerHTML = `
-            📍 <strong>Location:</strong> (${i}, ${j}) | 
-            <strong>Ice Thickness:</strong> 0.000 m <br>
-            <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
-        `;
-    }
+    const val = (iceDepth !== null && !isNaN(iceDepth) && iceDepth > 0) ? `${iceDepth.toFixed(3)} ${currentData.units || 'm'}` : '0.000 m';
+    pointStatsDiv.innerHTML = `
+        📍 <strong>Location:</strong> (${i}, ${j}) |
+        <strong>Ice Thickness:</strong> ${val}<br>
+        <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
+    `;
 }
 
 function createColorbar() {
     const colorbarDiv = document.getElementById('ice-colorbar');
     if (!colorbarDiv) return;
-
     colorbarDiv.innerHTML = '';
 
-    const svg = d3.select("#colorbar")
-        .append("svg")
-        .attr("width", 400)
-        .attr("height", 70)
-        .style("display", "block")
-        .style("margin", "0 auto");
+    const svg = d3.select("#colorbar").append("svg")
+        .attr("width", 400).attr("height", 70)
+        .style("display", "block").style("margin", "0 auto");
 
-    // Create gradient
     const defs = svg.append("defs");
     const gradient = defs.append("linearGradient")
         .attr("id", "iceGradient")
-        .attr("x1", "0%")
-        .attr("y1", "0%")
-        .attr("x2", "100%")
-        .attr("y2", "0%");
-
-    // Add color stops
+        .attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
     gradient.append("stop").attr("offset", "0%").attr("stop-color", "#f0f8ff");
     gradient.append("stop").attr("offset", "20%").attr("stop-color", "#c6dbef");
     gradient.append("stop").attr("offset", "40%").attr("stop-color", "#9ecae1");
@@ -410,43 +332,10 @@ function createColorbar() {
     gradient.append("stop").attr("offset", "80%").attr("stop-color", "#2171b5");
     gradient.append("stop").attr("offset", "100%").attr("stop-color", "#084594");
 
-    // Draw colorbar rectangle
-    svg.append("rect")
-        .attr("width", 300)
-        .attr("height", 20)
-        .attr("x", 50)
-        .attr("y", 10)
-        .style("fill", "url(#iceGradient)")
-        .style("stroke", "#ddd")
-        .style("stroke-width", "1px");
-
-    // Add labels
-    svg.append("text")
-        .attr("x", 50)
-        .attr("y", 45)
-        .text("0 m")
-        .style("font-size", "12px")
-        .style("text-anchor", "middle");
-
-    svg.append("text")
-        .attr("x", 200)
-        .attr("y", 45)
-        .text("1 m")
-        .style("font-size", "12px")
-        .style("text-anchor", "middle");
-
-    svg.append("text")
-        .attr("x", 350)
-        .attr("y", 45)
-        .text("3+ m")
-        .style("font-size", "12px")
-        .style("text-anchor", "middle");
-
-    svg.append("text")
-        .attr("x", 200)
-        .attr("y", 65)
-        .text("Sea Ice Thickness →")
-        .style("font-size", "11px")
-        .style("text-anchor", "middle")
-        .style("fill", "#666");
+    svg.append("rect").attr("width", 300).attr("height", 20).attr("x", 50).attr("y", 10)
+        .style("fill", "url(#iceGradient)").style("stroke", "#ddd").style("stroke-width", "1px");
+    svg.append("text").attr("x", 50).attr("y", 45).text("0 m").style("font-size", "12px").style("text-anchor", "middle");
+    svg.append("text").attr("x", 200).attr("y", 45).text("1 m").style("font-size", "12px").style("text-anchor", "middle");
+    svg.append("text").attr("x", 350).attr("y", 45).text("3+ m").style("font-size", "12px").style("text-anchor", "middle");
+    svg.append("text").attr("x", 200).attr("y", 65).text("Sea Ice Thickness →").style("font-size", "11px").style("text-anchor", "middle").style("fill", "#666");
 }

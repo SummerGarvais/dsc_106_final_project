@@ -7,13 +7,13 @@
 }
 
 :root {
-  --bg: #f7f5f0;
-  --surface: #ffffff;
-  --border: rgba(0, 0, 0, 0.09);
-  --text: #1a1a18;
-  --muted: #72706a;
-  --accent: #1a1a18;
-  --rule: rgba(0, 0, 0, 0.07);
+  --bg: #0b1018;
+  --surface: #131b25;
+  --border: rgba(255, 255, 255, 0.10);
+  --text: #e9eef4;
+  --muted: #95a3b2;
+  --accent: #7fb4dd;
+  --rule: rgba(255, 255, 255, 0.08);
   --serif: 'Instrument Serif', Georgia, serif;
   --sans: 'Instrument Sans', system-ui, sans-serif;
   --panel-h: 52px;
@@ -36,18 +36,67 @@ h1 {
   margin: auto;
 }
 
-/* ─── HERO ─── */
 .hero {
-  padding: 4vw 6vw 3vw;
-  border-bottom: 1px solid var(--border);
+  position: relative;
+  min-height: 160vh;
+}
+
+.hero-stage {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  overflow: hidden;
+  will-change: opacity;
+}
+
+#hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom,
+      rgba(8, 14, 30, 0.55),
+      rgba(8, 14, 30, 0.22) 42%,
+      rgba(8, 14, 30, 0.70));
+}
+
+#hero-rain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.hero-content {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 4vw 6vw;
+  color: #fff;
 }
 
 .hero-tag {
   font-size: 0.7rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.7);
   margin-bottom: 2rem;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
 }
 
 .hero h1 {
@@ -57,6 +106,8 @@ h1 {
   line-height: 1.05;
   max-width: 14ch;
   margin-bottom: 2.5rem;
+  color: #fff;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.65), 0 0 2px rgba(0, 0, 0, 0.4);
 }
 
 .hero h1 em {
@@ -65,15 +116,34 @@ h1 {
 
 .hero-meta {
   display: flex;
+  flex-wrap: wrap;
   gap: 2.5rem;
   padding-top: 1.5rem;
   margin-top: 2rem;
   justify-content: center;
-  
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
   font-size: 0.75rem;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.8);
   letter-spacing: 0.06em;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+}
+
+.hero-scroll-hint {
+  margin-top: 3rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  animation: hint-bob 2.2s ease-in-out infinite;
+}
+
+@keyframes hint-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(6px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-scroll-hint { animation: none; }
 }
 
 /* ─── SCROLLY WRAPPER ─── */
@@ -111,7 +181,6 @@ h1 {
   overflow: hidden;
 }
 
-/* Each viz panel: hidden by default, shown when active */
 .viz-panel {
   position: absolute;
   inset: 0;
@@ -193,7 +262,6 @@ h1 {
   margin-bottom: 0;
 }
 
-/* ─── FOOTER ─── */
 .footer {
   padding: 2.5rem 6vw;
   border-top: 1px solid var(--border);
@@ -221,17 +289,51 @@ h1 {
     padding-top: 2rem;
   }
 
+  .scrolly--flipped .viz-column {
+    border-left: none;
+    border-bottom: 1px solid var(--border);
+  }
+
   .viz-frame {
     aspect-ratio: 4/3;
+    top: 0;
   }
 
   .step {
     min-height: auto;
     padding: 3rem 2rem;
   }
+}
 
-  .hero {
-    padding: 2rem 2rem 3rem;
+@media (max-width: 600px) {
+  .hero h1 {
+    font-size: clamp(2.2rem, 9vw, 3.6rem);
+  }
+
+  .hero-meta {
+    gap: 1rem;
+    font-size: 0.7rem;
+  }
+
+  .section-break {
+    padding: 2.5rem 1.5rem 2rem;
+  }
+
+  .step {
+    padding: 2.5rem 1.5rem;
+  }
+
+  .chart-section {
+    padding: 0 1rem;
+  }
+}
+
+@media (max-width: 500px) {
+  .footer {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+    padding: 2rem 1.5rem;
   }
 }
 
@@ -286,27 +388,112 @@ h1 {
 }
 
 .viz-stats {
-  margin-top: 0.6rem;
-  font-size: 0.7rem;
-  color: var(--muted);
-  font-family: var(--sans);
-  font-weight: 300;
-  min-height: 4rem;
-  letter-spacing: 0.01em;
-  text-align: center;
-  align-content: center;
+  margin-top: 0.7rem;
+  min-height: 2.2rem;
 }
 
-.viz-stats strong {
-  font-weight: 400;
+/* ─── NUMERIC LEGENDS (replace the in-canvas color bar + stats text) ─── */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.8rem;
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+}
+
+.legend .legend-label {
+  font-weight: 500;
   color: var(--text);
 }
 
-.new-graph-gay-baby-jail {
+.legend .sw {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+.legend .sw i {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.legend .ramp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.legend .ramp .bar {
+  width: 120px;
+  height: 10px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+/* ─── CHART SECTION (volo ocean-volume chart) ─── */
+.chart-section {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 1000px;
+  margin: 2rem auto 3rem;
+  padding: 0 2rem;
+}
 
-  width: 50%;
-  margin: auto;
+.chart-section #volo-container {
+  width: 100%;
+  height: auto;
+}
+
+#volo-container .tick text {
+  fill: #aeb9c5;
+}
+#volo-container .domain,
+#volo-container .tick line {
+  stroke: rgba(255, 255, 255, 0.22);
+}
+
+.section-break.no-rule {
+  border-top: none;
+}
+
+/* ─── PRECIPITATION SECTION + RAIN OVERLAY ─── */
+.prec-section {
+  position: relative;
+}
+
+
+#prec-section .scrolly {
+  position: relative;
+}
+
+#prec-section .scrolly::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, 100%);
+  border-top: 1px solid var(--border);
+}
+
+#rain-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  display: block;
 }

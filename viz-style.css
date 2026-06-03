@@ -30,9 +30,9 @@ h1 {
     gap: 0.75rem;
 
     padding: 0 6vw;
-    background: rgba(247, 245, 240, 0.96);
+    background: rgba(11, 16, 24, 0.85);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.09);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 
 .control-panel label {
@@ -80,18 +80,18 @@ h1 {
     font-size: 12px;
 }
 .play-btn:hover {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.12);
 }
 
 .play-btn:active {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .play-btn.active {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.14);
 }
 .play-btn.active:active {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.22);
 }
 
 #play-pause-btn {
@@ -119,7 +119,6 @@ canvas {
     display: block;
 }
 
-/* remove double-border; stretch canvas to always fill the frame */
 .viz-frame canvas {
     border: none;
     box-shadow: none;
@@ -186,4 +185,40 @@ canvas {
     font-family: monospace;
     white-space: nowrap;
     z-index: 420;
+}
+
+/* ─── RESPONSIVE CONTROL PANEL ─── */
+
+@media (max-width: 600px) {
+    .control-panel {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: var(--panel-h, 52px);
+        padding: 6px 4vw;
+        gap: 0.4rem 0.6rem;
+    }
+
+    .control-panel label:not(:first-child) {
+        margin-left: 0.5rem;
+    }
+
+    .slider {
+        min-width: 110px;
+        flex: 1 1 110px;
+    }
+
+    .slider-label {
+        min-width: 64px;
+    }
+}
+
+@media (pointer: coarse) {
+    .slider {
+        height: 32px;
+    }
+
+    .play-btn {
+        min-height: 40px;
+        padding: 8px 12px;
+    }
 }

@@ -1,7 +1,10 @@
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 import { getCurrentYear, getCurrentMonth } from './sliders_setup.js';
+import { getCached, setCached, urlFor, prefetch } from './data_cache.js';
 
-// Global variables
+const MONTH_NAMES = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+
 let currentData = null;
 let colorScale = null;
 
@@ -10,19 +13,10 @@ let width = iceMeltContainer.offsetWidth;
 let height = iceMeltContainer.offsetHeight;
 
 const colors = [
-    '#084594',  // Level 1: Extreme freeze
-    '#1f64af',  // Level 2: Strong freeze
-    '#367ebd',  // Level 3: Moderate freeze
-    '#60b2e9',  // Level 4: Light freeze
-    '#99d6f9',  // Level 5: Very light freeze
-    '#f0f8ff',  // Level 6: Near zero / minimal
-    '#ffeabb',  // Level 7: Very minimal melt
-    '#ffd4b3',  // Level 8: Light melt
-    '#ffb377',  // Level 9: Moderate melt
-    '#f97e3c',  // Level 10: Strong melt
-    '#e34a33'   // Level 11: Very strong melt
+    '#084594', '#1f64af', '#367ebd', '#60b2e9', '#99d6f9', '#f0f8ff',
+    '#ffeabb', '#ffd4b3', '#ffb377', '#f97e3c', '#e34a33'
 ];
-// Initialize all viz elements when the page loads
+
 document.addEventListener('DOMContentLoaded', function () {
     initializeSeaMeltCanvas();
 
@@ -34,22 +28,26 @@ document.addEventListener('DOMContentLoaded', function () {
         height = newH;
         const canvas = document.getElementById('melt-canvas');
         if (canvas) {
-            canvas.width = width;
-            canvas.height = height;
-            if (currentData) updateVisualization(currentData);
+            resizeCanvas(canvas);
+            if (currentData) paintFrame(currentData.data, getCurrentYear(), getCurrentMonth(), currentData.units);
         }
     }).observe(iceMeltContainer);
 });
 
+function resizeCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(width * dpr));
+    canvas.height = Math.max(1, Math.round(height * dpr));
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
 function initializeSeaMeltCanvas() {
-    // Create canvas
+    width = iceMeltContainer.clientWidth;
+    height = iceMeltContainer.clientHeight;
+
     const canvas = document.createElement('canvas');
     canvas.id = 'melt-canvas';
-    canvas.width = width;
-    canvas.height = height;
-    canvas.style.cursor = 'crosshair';
-    canvas.style.border = '1px solid #ddd';
-    canvas.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
 
     const vizDiv = document.getElementById('ice-melt-container');
     if (vizDiv) {
@@ -57,60 +55,46 @@ function initializeSeaMeltCanvas() {
         vizDiv.appendChild(canvas);
     }
 
-    // Add hover event listener
+    resizeCanvas(canvas);
+
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseleave', () => {
         const tooltip = document.querySelector("#melt-tooltip");
-        tooltip.style.visibility = 'hidden';
-
+        if (tooltip) tooltip.style.visibility = 'hidden';
         const pointStatsDiv = document.getElementById('melt-point-stats');
         if (pointStatsDiv) {
             pointStatsDiv.innerHTML = `
-                📍 <strong>Location:</strong> No Data | 
+                📍 <strong>Location:</strong> No Data |
                 <strong>Ice flux:</strong> N/A <br>
                 <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
             `;
         }
     });
 
-    // Create color scale
-    colorScale = d3.scaleSequentialLog()
-        .domain([0.01, 5])
-        .interpolator(d3.interpolateBlues);
-
-    // Create colorbar
-    createColorbar();
+    colorScale = d3.scaleSequentialLog().domain([0.01, 5]).interpolator(d3.interpolateBlues);
+    buildLegend();
 }
 
 export async function loadNewMeltData() {
-    const currentYear = getCurrentYear();
-    const currentMonth = getCurrentMonth();
+    const year = getCurrentYear();
+    const month = getCurrentMonth();
+
+    const cached = getCached('melt', year, month);
+    if (cached) {
+        currentData = cached;
+        paintFrame(cached.data, year, month, cached.units);
+        return;
+    }
 
     try {
-        // Fetch the JSON file for this specific year
-        const response = await fetch(`./data/melt_data/ice_melt_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        const response = await fetch(urlFor('melt', year, month));
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const newData = await response.json();
-        // Update global variable with currently used dataset
+        setCached('melt', year, month, newData);
         currentData = newData;
-
-        // Update the visualization
-        updateVisualization(newData);
-
-        // Update statistics
-        updateOverallStats(newData);
-
+        paintFrame(newData.data, year, month, newData.units);
     } catch (error) {
-        console.error(`Error loading data for ${currentYear}:`, error);
-        if (overallStatsDiv) {
-            overallStatsDiv.innerHTML = `❌ Error loading data for ${currentYear}, ${currentMonth}. Make sure sea_ice_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json exists.`;
-        }
-
-        // Show error on canvas
+        console.error(`Error loading data for ${year}:`, error);
         const canvas = document.getElementById('melt-canvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
@@ -118,170 +102,141 @@ export async function loadNewMeltData() {
             ctx.fillRect(0, 0, width, height);
             ctx.fillStyle = '#ff0000';
             ctx.font = '16px Arial';
-            ctx.fillText(`Failed to load data for ${currentYear}, ${currentMonth}`, width / 2 - 150, height / 2);
+            ctx.fillText(`Failed to load data for ${year}, ${month}`, width / 2 - 150, height / 2);
         }
     }
 }
 
-// Updates canvas with sea ice melt data
-function updateVisualization(data) {
+export function renderMeltInterpolated(yA, mA, yB, mB, f) {
+    const cv = document.getElementById('melt-canvas');
+    if (cv && !canvasVisible(cv)) return;
+
+    const a = getCached('melt', yA, mA);
+    if (!a) { prefetch('melt', yA, mA); return; }
+    const b = getCached('melt', yB, mB);
+    if (!b) prefetch('melt', yB, mB);
+
+    currentData = a;
+    const label = f < 0.5 ? { y: yA, m: mA } : { y: yB, m: mB };
+    paintFrame(a.data, label.y, label.m, a.units, { skipIfHidden: true, b: (b && f > 0) ? b.data : null, f });
+}
+
+// 11 flux levels (freeze→melt) as RGB, plus land, for direct ImageData writes
+const MELT_RGB = [
+    [8, 69, 148], [31, 100, 175], [54, 126, 189], [96, 178, 233], [153, 214, 249],
+    [240, 248, 255], [255, 234, 187], [255, 212, 179], [255, 179, 119], [249, 126, 60], [227, 74, 51]
+];
+const MELT_LAND = [224, 224, 224];
+
+// Convert flux units to human readable mm/day of ice change
+const SECONDS_PER_DAY = 86400;
+function fmtChange(v) {
+    if (v === null || isNaN(v)) return '—';
+    const mm = v * SECONDS_PER_DAY;
+    const a = Math.abs(mm);
+    if (a < 0.05) return '≈0 mm/day';
+    const word = mm < 0 ? 'melting' : 'freezing';
+    return `${a.toFixed(a < 10 ? 1 : 0)} mm/day ${word}`;
+}
+function meltRGB(value) {
+    if (value <= -0.0009) return MELT_RGB[10];
+    if (value <= -0.0007) return MELT_RGB[9];
+    if (value <= -0.0005) return MELT_RGB[8];
+    if (value <= -0.0003) return MELT_RGB[7];
+    if (value <= -0.0001) return MELT_RGB[6];
+    if (value <= 0) return MELT_RGB[5];
+    if (value <= 0.0001) return MELT_RGB[4];
+    if (value <= 0.0003) return MELT_RGB[3];
+    if (value <= 0.0005) return MELT_RGB[2];
+    if (value <= 0.0007) return MELT_RGB[1];
+    return MELT_RGB[0];
+}
+
+let offCanvas = null, offCtx = null, offImg = null, offW = 0, offH = 0;
+function ensureOffscreen(nx, ny) {
+    if (!offCanvas) { offCanvas = document.createElement('canvas'); offCtx = offCanvas.getContext('2d'); }
+    if (offW !== nx || offH !== ny) {
+        offCanvas.width = nx; offCanvas.height = ny;
+        offImg = offCtx.createImageData(nx, ny);
+        offW = nx; offH = ny;
+    }
+}
+function canvasVisible(canvas) {
+    const r = canvas.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    return r.bottom > 0 && r.top < vh;
+}
+
+function paintFrame(values, year, month, units, opts = {}) {
     const canvas = document.getElementById('melt-canvas');
-    if (!canvas) return;
+    if (!canvas || !values || values.length === 0) return;
+    if (opts.skipIfHidden && !canvasVisible(canvas)) return;
 
     const ctx = canvas.getContext('2d');
-    const fluxData = data.data;
+    const ny = values.length;
+    const nx = values[0].length;
 
-    if (!fluxData || fluxData.length === 0) {
-        console.error('No data available');
-        return;
-    }
+    const B = opts.b || null;
+    const f = opts.f || 0;
 
-    const nx = fluxData[0].length;
-    const ny = fluxData.length;
-    const cellWidth = width / nx;
-    const cellHeight = height / ny;
-
-    // Clear canvas
-    ctx.fillStyle = '#f0f0f0';
-    ctx.fillRect(0, 0, width, height);
-
-    const minThick = Math.min(fluxData);
-    const maxThick = Math.max(fluxData);
-    // Draw each grid cell
-    for (let i = 0; i < nx; i++) {
-        for (let j = 0; j < ny; j++) {
-            let flipped_x = nx - i - 1;
-            let flipped_y = ny - j - 1;
-            const value = fluxData[flipped_y][flipped_x];
-
-            if (value !== null && !isNaN(value)) {
-                // 11 discrete color levels for melt flux (-0.001 to 0.001 range)
-                let color;
-
-                if (value <= -0.0009) {
-                    color = colors[10];      // Level 1: Extreme freeze
-                } else if (value <= -0.0007) {
-                    color = colors[9];      // Level 2: Strong freeze
-                } else if (value <= -0.0005) {
-                    color = colors[8];      // Level 3: Moderate freeze
-                } else if (value <= -0.0003) {
-                    color = colors[7];      // Level 4: Light freeze
-                } else if (value <= -0.0001) {
-                    color = colors[6];      // Level 5: Very light freeze
-                } else if (value <= 0) {
-                    color = colors[5];      // Level 6: Near zero / minimal
-                } else if (value <= 0.0001) {
-                    color = colors[4];      // Level 7: Very minimal melt
-                } else if (value <= 0.0003) {
-                    color = colors[3];      // Level 8: Light melt
-                } else if (value <= 0.0005) {
-                    color = colors[2];      // Level 9: Moderate melt
-                } else if (value <= 0.0007) {
-                    color = colors[1];      // Level 10: Strong melt
-                } else if (value <= 0.0009) {
-                    color = colors[0];     // Level 11: Very strong melt
-                }
-
-                ctx.fillStyle = color;
-                ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
-
-                // Subtle grid lines
-                ctx.strokeStyle = 'rgba(200,200,200,0.2)';
-                ctx.strokeRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
-            } else {
-                // Land or no ice
-                ctx.fillStyle = '#e0e0e0';
-                ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
+    ensureOffscreen(nx, ny);
+    const d = offImg.data;
+    for (let py = 0; py < ny; py++) {
+        const aRow = values[ny - py - 1];
+        const bRow = B ? B[ny - py - 1] : null;
+        for (let px = 0; px < nx; px++) {
+            const ai = nx - px - 1;
+            let value = aRow[ai];
+            if (bRow) {
+                const bv = bRow[ai];
+                const aBad = value === null || isNaN(value);
+                const bBad = bv === null || isNaN(bv);
+                if (aBad && bBad) value = NaN;
+                else if (aBad) value = bv;
+                else if (!bBad) value = value + (bv - value) * f;
             }
+            const o = (py * nx + px) * 4;
+            const c = (value !== null && !isNaN(value)) ? meltRGB(value) : MELT_LAND;
+            d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
         }
     }
+    offCtx.putImageData(offImg, 0, 0);
 
-    // Add title and annotations
-    const currentYear = getCurrentYear();
-    const currentMonthName = getCurrentMonth(name = true);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(offCanvas, 0, 0, width, height);
 
-    ctx.font = '500 16px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(26,26,24,0.75)';
-
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle'; // Centers text vertically
-    ctx.fillText(`Ice Melt Flux · ${currentMonthName} ${currentYear}`, width / 2, 20);
-
-    // Draw mini color bar at bottom right
-    const miniBarWidth = 140;
-    const miniBarHeight = 12;
-    const miniBarX = width - miniBarWidth - 10;
-    const miniBarY = height - 25;
-
-    // Define the color segments for mini bar
-    const segments = [
-        { color: colors[0], width: miniBarWidth / 11 },
-        { color: colors[1], width: miniBarWidth / 11 },
-        { color: colors[2], width: miniBarWidth / 11 },
-        { color: colors[3], width: miniBarWidth / 11 },
-        { color: colors[4], width: miniBarWidth / 11 },
-        { color: colors[5], width: miniBarWidth / 11 },
-        { color: colors[6], width: miniBarWidth / 11 },
-        { color: colors[7], width: miniBarWidth / 11 },
-        { color: colors[8], width: miniBarWidth / 11 },
-        { color: colors[9], width: miniBarWidth / 11 },
-        { color: colors[10], width: miniBarWidth / 11 }
-    ];
-
-    for (let i = 0; i < segments.length; i++) {
-        ctx.fillStyle = segments[i].color;
-        ctx.fillRect(miniBarX + (i * segments[i].width), miniBarY, segments[i].width, miniBarHeight);
-    }
-
-    // Border around mini color bar
-    ctx.strokeStyle = '#999';
-    ctx.strokeRect(miniBarX, miniBarY, miniBarWidth, miniBarHeight);
-
-    // Labels for mini color bar
-    ctx.fillStyle = 'rgba(26,26,24,0.55)';
-    ctx.font = '11px system-ui, sans-serif';
-    ctx.fillText('Freeze', miniBarX + 18, miniBarY - 5);
-    ctx.fillText('Melt', miniBarX + miniBarWidth - 10, miniBarY - 5);
+    drawAnnotations(ctx, year, month);
 }
 
-// Update stats for that year at the bottom of the page
-function updateOverallStats(data) {
-    const fluxData = data.data;
-    const overallStatsDiv = document.getElementById('melt-overall-stats');
+function drawAnnotations(ctx, year, month) {
+    const monthName = MONTH_NAMES[month] || month;
+    const titleSize = Math.max(11, Math.min(16, width / 28));
+    ctx.font = `500 ${titleSize}px system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(26,26,24,0.75)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Ice Melt Flux · ${monthName} ${year}`, width / 2, 20);
+}
 
-    if (!overallStatsDiv || !fluxData) return;
-
-    // Flatten the array and filter valid values
-    const values = [];
-    for (let i = 0; i < fluxData.length; i++) {
-        for (let j = 0; j < fluxData[i].length; j++) {
-            const val = fluxData[i][j];
-            if (val !== null && !isNaN(val) && val > 0) {
-                values.push(val);
-            }
-        }
-    }
-
-    if (values.length > 0) {
-        const mean = values.reduce((a, b) => a + b, 0) / values.length;
-        const max = Math.max(...values);
-        const min = Math.min(...values);
-
-        const currentMonthName = getCurrentMonth(name = true);
-        const currentYear = getCurrentYear();
-        overallStatsDiv.innerHTML = `
-            <strong>Statistics for ${currentMonthName} ${currentYear}:</strong><br>
-            Mean ice flux: ${mean.toFixed(5)} ${data.units || 'm'} — 
-            Max: ${max.toFixed(5)} ${data.units || 'm'} — 
-            Min: ${min.toFixed(5)} ${data.units || 'm'}<br>
-        `;
-    } else {
-        overallStatsDiv.innerHTML = `📊 No sea ice melt detected in ${data.year}`;
-    }
+// Static legend with numeric flux endpoints
+function buildLegend() {
+    const div = document.getElementById('melt-overall-stats');
+    if (!div) return;
+    div.className = 'viz-stats';
+    div.innerHTML = `<div class="legend">
+        <span class="legend-label">Daily ice change (mm/day, water-equiv.)</span>
+        <span class="ramp">
+            <span>melting −78</span>
+            <span class="bar" style="background:linear-gradient(to right,#e34a33,#f97e3c,#f0f8ff,#367ebd,#084594)"></span>
+            <span>+78 freezing</span>
+        </span>
+        <span class="sw"><i style="background:#f0f8ff"></i>0 (no change)</span>
+    </div>`;
 }
 
 function handleMouseMove(event) {
     if (!currentData) return;
+    if ('ontouchstart' in window) return;
 
     const canvas = document.getElementById('melt-canvas');
     if (!canvas) return;
@@ -295,90 +250,58 @@ function handleMouseMove(event) {
 
     const nx = fluxData[0].length;
     const ny = fluxData.length;
-
-    const i = Math.floor(mouseX / width * nx);
-    const j = Math.floor(mouseY / height * ny);
+    const i = Math.floor(mouseX / rect.width * nx);
+    const j = Math.floor(mouseY / rect.height * ny);
 
     if (i >= 0 && i < nx && j >= 0 && j < ny) {
-        let flipped_x = nx - i - 1;
-        let flipped_y = ny - j - 1;
-        const meltFlux = fluxData[flipped_y][flipped_x];
-
+        const meltFlux = fluxData[ny - j - 1][nx - i - 1];
         updateToolTip(event, meltFlux);
         updatePointStats(i, j, meltFlux);
     }
 }
 
 function updateToolTip(event, meltFlux) {
-    // Create a tooltip-like display right under the cursor
-    const tooltipX = event.pageX;
-    const tooltipY = event.pageY;
-
-    // Create tooltip if one doesn't exist yet
     let tooltip = document.querySelector("#melt-tooltip");
     if (!tooltip) {
         tooltip = document.createElement('div');
         tooltip.classList.add("tooltip");
         tooltip.id = "melt-tooltip";
-        // Put at the front so that its coordinates are relative to the screen rather than whatever container it's in
         document.body.prepend(tooltip);
     }
     tooltip.style.visibility = 'visible';
-
     if (meltFlux !== null && !isNaN(meltFlux)) {
-        tooltip.innerHTML = `❄️ sea ice melt: ${meltFlux.toFixed(5)} ${currentData.units || 'm'}`;
+        tooltip.innerHTML = `❄️ ${fmtChange(meltFlux)}`;
     } else {
-        tooltip.innerHTML = `🌊 No sea ice melt / Land`;
+        tooltip.innerHTML = `🌊 No sea ice / Land`;
     }
-
-    // Put tooltip under cursor while on canvas
-    tooltip.style.left = tooltipX + 'px';
-    tooltip.style.top = tooltipY + 'px';
+    tooltip.style.left = event.pageX + 'px';
+    tooltip.style.top = event.pageY + 'px';
 }
 
 function updatePointStats(i, j, meltFlux) {
-    // Update point stats at bottom of the document with data of cell being hovered over
     const pointStatsDiv = document.getElementById('melt-point-stats');
     if (!pointStatsDiv) return;
-
-    if (meltFlux !== null && !isNaN(meltFlux)) {
-        pointStatsDiv.innerHTML = `
-            📍 <strong>Location:</strong> (${i}, ${j}) | 
-            <strong>Ice Flux:</strong> ${meltFlux.toFixed(5)} ${currentData.units || 'm'}<br>
-            <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
-        `;
-    } else {
-        pointStatsDiv.innerHTML = `
-            📍 <strong>Location:</strong> (${i}, ${j}) | 
-            <strong>Ice Flux:</strong> 0.000 m <br>
-            <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
-        `;
-    }
+    const val = fmtChange(meltFlux);
+    pointStatsDiv.innerHTML = `
+        📍 <strong>Location:</strong> (${i}, ${j}) |
+        <strong>Ice change:</strong> ${val}<br>
+        <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
+    `;
 }
 
 function createColorbar() {
     const colorbarDiv = document.getElementById('melt-colorbar');
     if (!colorbarDiv) return;
-
     colorbarDiv.innerHTML = '';
 
-    const svg = d3.select("#colorbar")
-        .append("svg")
-        .attr("width", 400)
-        .attr("height", 70)
-        .style("display", "block")
-        .style("margin", "0 auto");
+    const svg = d3.select("#colorbar").append("svg")
+        .attr("width", 400).attr("height", 70)
+        .style("display", "block").style("margin", "0 auto");
 
-    // Create gradient
     const defs = svg.append("defs");
     const gradient = defs.append("linearGradient")
         .attr("id", "iceGradient")
-        .attr("x1", "0%")
-        .attr("y1", "0%")
-        .attr("x2", "100%")
-        .attr("y2", "0%");
-
-    // Add color stops
+        .attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
     gradient.append("stop").attr("offset", "0%").attr("stop-color", "#f0f8ff");
     gradient.append("stop").attr("offset", "20%").attr("stop-color", "#c6dbef");
     gradient.append("stop").attr("offset", "40%").attr("stop-color", "#9ecae1");
@@ -386,43 +309,10 @@ function createColorbar() {
     gradient.append("stop").attr("offset", "80%").attr("stop-color", "#2171b5");
     gradient.append("stop").attr("offset", "100%").attr("stop-color", "#084594");
 
-    // Draw colorbar rectangle
-    svg.append("rect")
-        .attr("width", 300)
-        .attr("height", 20)
-        .attr("x", 50)
-        .attr("y", 10)
-        .style("fill", "url(#iceGradient)")
-        .style("stroke", "#ddd")
-        .style("stroke-width", "1px");
-
-    // Add labels
-    svg.append("text")
-        .attr("x", 50)
-        .attr("y", 45)
-        .text("0 m")
-        .style("font-size", "12px")
-        .style("text-anchor", "middle");
-
-    svg.append("text")
-        .attr("x", 200)
-        .attr("y", 45)
-        .text("1 m")
-        .style("font-size", "12px")
-        .style("text-anchor", "middle");
-
-    svg.append("text")
-        .attr("x", 350)
-        .attr("y", 45)
-        .text("3+ m")
-        .style("font-size", "12px")
-        .style("text-anchor", "middle");
-
-    svg.append("text")
-        .attr("x", 200)
-        .attr("y", 65)
-        .text("Sea Ice Flux →")
-        .style("font-size", "11px")
-        .style("text-anchor", "middle")
-        .style("fill", "#666");
+    svg.append("rect").attr("width", 300).attr("height", 20).attr("x", 50).attr("y", 10)
+        .style("fill", "url(#iceGradient)").style("stroke", "#ddd").style("stroke-width", "1px");
+    svg.append("text").attr("x", 50).attr("y", 45).text("0 m").style("font-size", "12px").style("text-anchor", "middle");
+    svg.append("text").attr("x", 200).attr("y", 45).text("1 m").style("font-size", "12px").style("text-anchor", "middle");
+    svg.append("text").attr("x", 350).attr("y", 45).text("3+ m").style("font-size", "12px").style("text-anchor", "middle");
+    svg.append("text").attr("x", 200).attr("y", 65).text("Sea Ice Flux →").style("font-size", "11px").style("text-anchor", "middle").style("fill", "#666");
 }

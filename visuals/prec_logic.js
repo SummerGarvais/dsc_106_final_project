@@ -1,7 +1,10 @@
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 import { getCurrentYear, getCurrentMonth } from './sliders_setup.js';
+import { getCached, setCached, urlFor, prefetch } from './data_cache.js';
 
-// Global variables
+const MONTH_NAMES = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+
 let currentData = null;
 let colorScale = null;
 
@@ -9,52 +12,37 @@ const precContainer = document.getElementById('prec-container');
 let width = precContainer.offsetWidth;
 let height = precContainer.offsetHeight;
 
-const colorHigh = '#084594';  // Blue (extreme precipitation)
-const colorMid = '#fed976';   // Yellow (moderate precipitation)
-const colorLow = '#ffffff';   // White (minimal/no precipitation)
-
-function interpolateColor(precValue, minPrecip, maxPrecip) {
-    // Clamp value between min and max
+// Stops as RGB triples
+const PREC_HIGH = [8, 69, 148];
+const PREC_MID = [254, 217, 118];
+const PREC_LOW = [255, 255, 255];
+// Writes the interpolated color straight into an ImageData buffer 
+function writePrecRGB(d, o, precValue, minPrecip, maxPrecip) {
     const t = Math.max(0, Math.min(1, (precValue - minPrecip) / (maxPrecip - minPrecip)));
-
-    let r, g, b;
-
-    if (t <= 0.5) {
-        // Transition from Blue (high precip) to Yellow (mid precip)
-        const t2 = t * 2; // Scale 0-0.5 to 0-1
-
-        const r1 = parseInt(colorHigh.slice(1, 3), 16);
-        const g1 = parseInt(colorHigh.slice(3, 5), 16);
-        const b1 = parseInt(colorHigh.slice(5, 7), 16);
-
-        const r2 = parseInt(colorMid.slice(1, 3), 16);
-        const g2 = parseInt(colorMid.slice(3, 5), 16);
-        const b2 = parseInt(colorMid.slice(5, 7), 16);
-
-        r = Math.round(r1 + (r2 - r1) * t2);
-        g = Math.round(g1 + (g2 - g1) * t2);
-        b = Math.round(b1 + (b2 - b1) * t2);
-    } else {
-        // Transition from Yellow (mid precip) to White (low precip)
-        const t2 = (t - 0.5) * 2; // Scale 0.5-1 to 0-1
-
-        const r1 = parseInt(colorMid.slice(1, 3), 16);
-        const g1 = parseInt(colorMid.slice(3, 5), 16);
-        const b1 = parseInt(colorMid.slice(5, 7), 16);
-
-        const r2 = parseInt(colorLow.slice(1, 3), 16);
-        const g2 = parseInt(colorLow.slice(3, 5), 16);
-        const b2 = parseInt(colorLow.slice(5, 7), 16);
-
-        r = Math.round(r1 + (r2 - r1) * t2);
-        g = Math.round(g1 + (g2 - g1) * t2);
-        b = Math.round(b1 + (b2 - b1) * t2);
-    }
-
-    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+    let a, b, tt;
+    if (t <= 0.5) { a = PREC_HIGH; b = PREC_MID; tt = t * 2; }
+    else { a = PREC_MID; b = PREC_LOW; tt = (t - 0.5) * 2; }
+    d[o] = (a[0] + (b[0] - a[0]) * tt) | 0;
+    d[o + 1] = (a[1] + (b[1] - a[1]) * tt) | 0;
+    d[o + 2] = (a[2] + (b[2] - a[2]) * tt) | 0;
+    d[o + 3] = 255;
 }
 
-// Initialize all viz elements when the page loads
+let offCanvas = null, offCtx = null, offImg = null, offW = 0, offH = 0;
+function ensureOffscreen(nx, ny) {
+    if (!offCanvas) { offCanvas = document.createElement('canvas'); offCtx = offCanvas.getContext('2d'); }
+    if (offW !== nx || offH !== ny) {
+        offCanvas.width = nx; offCanvas.height = ny;
+        offImg = offCtx.createImageData(nx, ny);
+        offW = nx; offH = ny;
+    }
+}
+function canvasVisible(canvas) {
+    const r = canvas.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    return r.bottom > 0 && r.top < vh;
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     initializePrecCanvas();
 
@@ -66,22 +54,26 @@ document.addEventListener('DOMContentLoaded', function () {
         height = newH;
         const canvas = document.getElementById('prec-canvas');
         if (canvas) {
-            canvas.width = width;
-            canvas.height = height;
-            if (currentData) updateVisualization(currentData);
+            resizeCanvas(canvas);
+            if (currentData) paintFrame(currentData.data, getCurrentYear(), getCurrentMonth(), currentData.units);
         }
     }).observe(precContainer);
 });
 
+function resizeCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(width * dpr));
+    canvas.height = Math.max(1, Math.round(height * dpr));
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
 function initializePrecCanvas() {
-    // Create canvas
+    width = precContainer.clientWidth;
+    height = precContainer.clientHeight;
+
     const canvas = document.createElement('canvas');
     canvas.id = 'prec-canvas';
-    canvas.width = width;
-    canvas.height = height;
-    canvas.style.cursor = 'crosshair';
-    canvas.style.border = '1px solid #ddd';
-    canvas.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
 
     const vizDiv = document.getElementById('prec-container');
     if (vizDiv) {
@@ -89,62 +81,46 @@ function initializePrecCanvas() {
         vizDiv.appendChild(canvas);
     }
 
-    // Add hover event listener
+    resizeCanvas(canvas);
+
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseleave', () => {
         const tooltip = document.querySelector("#prec-tooltip");
-        tooltip.style.visibility = 'hidden';
-
+        if (tooltip) tooltip.style.visibility = 'hidden';
         const pointStatsDiv = document.getElementById('prec-point-stats');
         if (pointStatsDiv) {
             pointStatsDiv.innerHTML = `
-                📍 <strong>Location:</strong> No Data | 
+                📍 <strong>Location:</strong> No Data |
                 <strong>Precipitation:</strong> N/A <br>
                 <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
             `;
         }
     });
 
-    // Create color scale
-    colorScale = d3.scaleSequentialLog()
-        .domain([0.01, 5])
-        .interpolator(d3.interpolateBlues);
-
-    // Create colorbar
-    createColorbar();
+    colorScale = d3.scaleSequentialLog().domain([0.01, 5]).interpolator(d3.interpolateBlues);
+    buildLegend();
 }
 
 export async function loadNewPrecData() {
-    const currentYear = getCurrentYear();
-    const currentMonth = getCurrentMonth();
+    const year = getCurrentYear();
+    const month = getCurrentMonth();
+
+    const cached = getCached('prec', year, month);
+    if (cached) {
+        currentData = cached;
+        paintFrame(cached.data, year, month, cached.units);
+        return;
+    }
 
     try {
-        // Fetch the JSON file for this specific year
-        const response = await fetch(`./data/prec_data/prec_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json`);
-        console.log(`getting data from prec_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        const response = await fetch(urlFor('prec', year, month));
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const newData = await response.json();
-        // Update global variable with currently used dataset
+        setCached('prec', year, month, newData);
         currentData = newData;
-
-        // Update the visualization
-        updateVisualization(newData);
-
-        // Update statistics
-        updateOverallStats(newData);
-
+        paintFrame(newData.data, year, month, newData.units);
     } catch (error) {
-        console.error(`Error loading data for ${currentYear}:`, error);
-        const overallStatsDiv = document.getElementById('prec-overall-stats');
-        if (overallStatsDiv) {
-            overallStatsDiv.innerHTML = `❌ Error loading data for ${currentYear}, ${currentMonth}. Make sure sea_ice_${currentYear}_${currentMonth.toString().padStart(2, '0')}.json exists.`;
-        }
-
-        // Show error on canvas
+        console.error(`Error loading data for ${year}:`, error);
         const canvas = document.getElementById('prec-canvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
@@ -152,138 +128,131 @@ export async function loadNewPrecData() {
             ctx.fillRect(0, 0, width, height);
             ctx.fillStyle = '#ff0000';
             ctx.font = '16px Arial';
-            ctx.fillText(`Failed to load data for ${currentYear}, ${currentMonth}`, width / 2 - 150, height / 2);
+            ctx.fillText(`Failed to load data for ${year}, ${month}`, width / 2 - 150, height / 2);
         }
     }
 }
 
-// Updates canvas with precipitation data
-function updateVisualization(data) {
+export function renderPrecInterpolated(yA, mA, yB, mB, f) {
+    const cv = document.getElementById('prec-canvas');
+    if (cv && !canvasVisible(cv)) return;
+
+    const a = getCached('prec', yA, mA);
+    if (!a) { prefetch('prec', yA, mA); return; }
+    const b = getCached('prec', yB, mB);
+    if (!b) prefetch('prec', yB, mB);
+
+    currentData = a;
+    const label = f < 0.5 ? { y: yA, m: mA } : { y: yB, m: mB };
+    paintFrame(a.data, label.y, label.m, a.units, { skipIfHidden: true, b: (b && f > 0) ? b.data : null, f });
+}
+
+function paintFrame(values, year, month, units, opts = {}) {
     const canvas = document.getElementById('prec-canvas');
-    if (!canvas) return;
+    if (!canvas || !values || values.length === 0) return;
+    if (opts.skipIfHidden && !canvasVisible(canvas)) return;
 
     const ctx = canvas.getContext('2d');
-    const precData = data.data;
+    const ny = values.length;
+    const nx = values[0].length;
 
-    if (!precData || precData.length === 0) {
-        console.error('No data available');
-        return;
-    }
+    // B-frame interpolation 
+    const B = opts.b || null;
+    const f = opts.f || 0;
+    const interp = (a, b) => {
+        if (!B) return a;
+        const aBad = a === null || isNaN(a);
+        const bBad = b === null || isNaN(b);
+        if (aBad && bBad) return NaN;
+        if (aBad) return b;
+        if (bBad) return a;
+        return a + (b - a) * f;
+    };
 
-    const nx = precData[0].length;
-    const ny = precData.length;
-
-    // SOLUTION 1: Force integer dimensions
-    const cellWidth = Math.floor(width / nx);
-    const cellHeight = Math.floor(height / ny);
-
-    // Adjust canvas dimensions to be exact multiples of cell sizes
-    const adjustedWidth = cellWidth * nx;
-    const adjustedHeight = cellHeight * ny;
-
-    canvas.width = adjustedWidth;
-    canvas.height = adjustedHeight;
-
-    // Clear canvas
-    ctx.fillStyle = '#f0f0f0';
-    ctx.fillRect(0, 0, width, height);
-
-    // Draw each grid cell
-    const flattenedData = precData.flat();
-
-    const minPrecip = Math.min(...flattenedData);
-    const maxPrecip = Math.max(...flattenedData);
-
-
-    console.log(minPrecip, maxPrecip);
-
-    for (let i = 0; i < nx; i++) {
-        for (let j = 0; j < ny; j++) {
-            let x = i;
-            let flipped_y = ny - j - 1;
-            const value = precData[flipped_y][x];
-
-            let color = interpolateColor(value, minPrecip, maxPrecip);
-            ctx.fillStyle = color;
-            ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
-        }
-    }
-
-    // Add title and annotations
-    const currentYear = getCurrentYear();
-    const currentMonthName = getCurrentMonth(name = true);
-
-    ctx.font = '500 16px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(26,26,24,0.75)';
-
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle'; // Centers text vertically
-    ctx.fillText(`Precipitation · ${currentMonthName} ${currentYear}`, width / 2, 20);
-
-    // Draw mini color bar at bottom right
-    const miniBarWidth = 140;
-    const miniBarHeight = 12;
-    const miniBarX = width - miniBarWidth - 10;
-    const miniBarY = height - 25;
-
-    // Create a linear gradient for continuous color transition
-    const gradient = ctx.createLinearGradient(miniBarX, miniBarY, miniBarX + miniBarWidth, miniBarY);
-    gradient.addColorStop(0, '#fed976');   // Yellow - No rain (min)
-    gradient.addColorStop(1, '#084594');   // Blue - Heavy rain (max)
-
-    // Draw the continuous color bar
-    ctx.fillStyle = gradient;
-    ctx.fillRect(miniBarX, miniBarY, miniBarWidth, miniBarHeight);
-
-    // Border around mini color bar
-    ctx.strokeStyle = '#999';
-    ctx.strokeRect(miniBarX, miniBarY, miniBarWidth, miniBarHeight);
-
-    // Labels for mini color bar
-    ctx.fillStyle = 'rgba(26,26,24,0.55)';
-    ctx.font = '11px system-ui, sans-serif';
-    ctx.fillText('Heavy Rain', miniBarX + 18, miniBarY - 5);
-    ctx.fillText('No Rain', miniBarX + miniBarWidth - 30, miniBarY - 5);
-}
-
-// Update stats for that year at the bottom of the page
-function updateOverallStats(data) {
-    const precData = data.data;
-    const overallStatsDiv = document.getElementById('prec-overall-stats');
-
-    if (!overallStatsDiv || !precData) return;
-
-    // Flatten the array and filter valid values
-    const values = [];
-    for (let i = 0; i < precData.length; i++) {
-        for (let j = 0; j < precData[i].length; j++) {
-            const val = precData[i][j];
-            if (val !== null && !isNaN(val) && val > 0) {
-                values.push(val);
+    // Interpolated data range for the color scale
+    let minPrecip = Infinity, maxPrecip = -Infinity;
+    for (let j = 0; j < ny; j++) {
+        const aRow = values[j];
+        const bRow = B ? B[j] : null;
+        for (let i = 0; i < nx; i++) {
+            const v = bRow ? interp(aRow[i], bRow[i]) : aRow[i];
+            if (v !== null && !isNaN(v)) {
+                if (v < minPrecip) minPrecip = v;
+                if (v > maxPrecip) maxPrecip = v;
             }
         }
     }
 
-    if (values.length > 0) {
-        const mean = values.reduce((a, b) => a + b, 0) / values.length;
-        const max = Math.max(...values);
-        const min = Math.min(...values);
-
-        const currentMonthName = getCurrentMonth(name = true);
-        const currentYear = getCurrentYear();
-        overallStatsDiv.innerHTML = `
-            <strong>Statistics for ${currentMonthName} ${currentYear}:</strong><br>
-            Mean precipitation: ${mean.toFixed(5)} ${data.units || 'm'} — 
-            Max: ${max.toFixed(5)} ${data.units || 'm'} — 
-            Min: ${min.toFixed(5)} ${data.units || 'm'}<br>
-        `;
-    } else {
-        overallStatsDiv.innerHTML = `📊 No precipitation detected in ${data.year}`;
+    // Rasterize into the offscreen buffer
+    ensureOffscreen(nx, ny);
+    const d = offImg.data;
+    for (let py = 0; py < ny; py++) {
+        const aRow = values[ny - py - 1];
+        const bRow = B ? B[ny - py - 1] : null;
+        for (let px = 0; px < nx; px++) {
+            const value = bRow ? interp(aRow[px], bRow[px]) : aRow[px];
+            const o = (py * nx + px) * 4;
+            if (value !== null && !isNaN(value)) {
+                writePrecRGB(d, o, value, minPrecip, maxPrecip);
+            } else {
+                d[o] = 240; d[o + 1] = 240; d[o + 2] = 240; d[o + 3] = 255;
+            }
+        }
     }
+    offCtx.putImageData(offImg, 0, 0);
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(offCanvas, 0, 0, width, height);
+
+    drawAnnotations(ctx, year, month);
+    updateLegend(minPrecip, maxPrecip);
+}
+
+function drawAnnotations(ctx, year, month) {
+    const monthName = MONTH_NAMES[month] || month;
+    const titleSize = Math.max(11, Math.min(16, width / 28));
+    ctx.font = `500 ${titleSize}px system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(26,26,24,0.75)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Precipitation · ${monthName} ${year}`, width / 2, 20);
+}
+
+// Build the legend shell once
+function buildLegend() {
+    const div = document.getElementById('prec-overall-stats');
+    if (!div) return;
+    div.className = 'viz-stats';
+    div.innerHTML = `<div class="legend">
+        <span class="legend-label">Rainfall rate (mm/day)</span>
+        <span class="ramp">
+            <span id="prec-leg-min">—</span>
+            <span class="bar" style="background:linear-gradient(to right,#084594,#fed976,#ffffff)"></span>
+            <span id="prec-leg-max">—</span>
+        </span>
+        <span class="sw">drier → wetter</span>
+    </div>`;
+}
+
+// Convert precipitation in m/s to mm/day and format for display
+const SECONDS_PER_DAY = 86400;
+function fmtMmPerDay(v) {
+    if (!isFinite(v)) return '—';
+    const mm = v * SECONDS_PER_DAY;
+    if (mm < 0.05) return '≈0';
+    return `${mm.toFixed(mm < 10 ? 1 : 0)}`;
+}
+
+function updateLegend(min, max) {
+    const lo = document.getElementById('prec-leg-min');
+    const hi = document.getElementById('prec-leg-max');
+    if (lo) lo.textContent = fmtMmPerDay(min);
+    if (hi) hi.textContent = fmtMmPerDay(max);
 }
 
 function handleMouseMove(event) {
     if (!currentData) return;
+    if ('ontouchstart' in window) return;
 
     const canvas = document.getElementById('prec-canvas');
     if (!canvas) return;
@@ -297,90 +266,58 @@ function handleMouseMove(event) {
 
     const nx = precData[0].length;
     const ny = precData.length;
-
-    const i = Math.floor(mouseX / width * nx);
-    const j = Math.floor(mouseY / height * ny);
+    const i = Math.floor(mouseX / rect.width * nx);
+    const j = Math.floor(mouseY / rect.height * ny);
 
     if (i >= 0 && i < nx && j >= 0 && j < ny) {
-        let x = i;
-        let flipped_y = ny - j - 1;
-        const precLevel = precData[flipped_y][x];
-
+        const precLevel = precData[ny - j - 1][i];
         updateToolTip(event, precLevel);
         updatePointStats(i, j, precLevel);
     }
 }
 
 function updateToolTip(event, precLevel) {
-    // Create a tooltip-like display right under the cursor
-    const tooltipX = event.pageX;
-    const tooltipY = event.pageY;
-
-    // Create tooltip if one doesn't exist yet
     let tooltip = document.querySelector("#prec-tooltip");
     if (!tooltip) {
         tooltip = document.createElement('div');
         tooltip.classList.add("tooltip");
         tooltip.id = "prec-tooltip";
-        // Put at the front so that its coordinates are relative to the screen rather than whatever container it's in
         document.body.prepend(tooltip);
     }
     tooltip.style.visibility = 'visible';
-
     if (precLevel !== null && !isNaN(precLevel)) {
-        tooltip.innerHTML = `❄️ precipitation: ${precLevel.toFixed(5)} ${currentData.units || 'm'}`;
+        tooltip.innerHTML = `🌧️ rainfall: ${fmtMmPerDay(precLevel)} mm/day`;
     } else {
         tooltip.innerHTML = `🌊 No precipitation / Land`;
     }
-
-    // Put tooltip under cursor while on canvas
-    tooltip.style.left = tooltipX + 'px';
-    tooltip.style.top = tooltipY + 'px';
+    tooltip.style.left = event.pageX + 'px';
+    tooltip.style.top = event.pageY + 'px';
 }
 
 function updatePointStats(i, j, precLevel) {
-    // Update point stats at bottom of the document with data of cell being hovered over
     const pointStatsDiv = document.getElementById('prec-point-stats');
     if (!pointStatsDiv) return;
-
-    if (precLevel !== null && !isNaN(precLevel)) {
-        pointStatsDiv.innerHTML = `
-            📍 <strong>Location:</strong> (${i}, ${j}) | 
-            <strong>Precipitation:</strong> ${precLevel.toFixed(5)} ${currentData.units || 'm'}<br>
-            <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
-        `;
-    } else {
-        pointStatsDiv.innerHTML = `
-            📍 <strong>Location:</strong> (${i}, ${j}) | 
-            <strong>Precipitation:</strong> 0.000 m <br>
-            <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
-        `;
-    }
+    const val = (precLevel !== null && !isNaN(precLevel)) ? `${fmtMmPerDay(precLevel)} mm/day` : '≈0 mm/day';
+    pointStatsDiv.innerHTML = `
+        📍 <strong>Location:</strong> (${i}, ${j}) |
+        <strong>Precipitation:</strong> ${val}<br>
+        <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
+    `;
 }
 
 function createColorbar() {
     const colorbarDiv = document.getElementById('prec-colorbar');
     if (!colorbarDiv) return;
-
     colorbarDiv.innerHTML = '';
 
-    const svg = d3.select("#colorbar")
-        .append("svg")
-        .attr("width", 400)
-        .attr("height", 70)
-        .style("display", "block")
-        .style("margin", "0 auto");
+    const svg = d3.select("#colorbar").append("svg")
+        .attr("width", 400).attr("height", 70)
+        .style("display", "block").style("margin", "0 auto");
 
-    // Create gradient
     const defs = svg.append("defs");
     const gradient = defs.append("linearGradient")
         .attr("id", "iceGradient")
-        .attr("x1", "0%")
-        .attr("y1", "0%")
-        .attr("x2", "100%")
-        .attr("y2", "0%");
-
-    // Add color stops
+        .attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
     gradient.append("stop").attr("offset", "0%").attr("stop-color", "#f0f8ff");
     gradient.append("stop").attr("offset", "20%").attr("stop-color", "#c6dbef");
     gradient.append("stop").attr("offset", "40%").attr("stop-color", "#9ecae1");
@@ -388,43 +325,10 @@ function createColorbar() {
     gradient.append("stop").attr("offset", "80%").attr("stop-color", "#2171b5");
     gradient.append("stop").attr("offset", "100%").attr("stop-color", "#084594");
 
-    // Draw colorbar rectangle
-    svg.append("rect")
-        .attr("width", 300)
-        .attr("height", 20)
-        .attr("x", 50)
-        .attr("y", 10)
-        .style("fill", "url(#iceGradient)")
-        .style("stroke", "#ddd")
-        .style("stroke-width", "1px");
-
-    // Add labels
-    svg.append("text")
-        .attr("x", 50)
-        .attr("y", 45)
-        .text("0 m")
-        .style("font-size", "12px")
-        .style("text-anchor", "middle");
-
-    svg.append("text")
-        .attr("x", 200)
-        .attr("y", 45)
-        .text("1 m")
-        .style("font-size", "12px")
-        .style("text-anchor", "middle");
-
-    svg.append("text")
-        .attr("x", 350)
-        .attr("y", 45)
-        .text("3+ m")
-        .style("font-size", "12px")
-        .style("text-anchor", "middle");
-
-    svg.append("text")
-        .attr("x", 200)
-        .attr("y", 65)
-        .text("Precipitation →")
-        .style("font-size", "11px")
-        .style("text-anchor", "middle")
-        .style("fill", "#666");
+    svg.append("rect").attr("width", 300).attr("height", 20).attr("x", 50).attr("y", 10)
+        .style("fill", "url(#iceGradient)").style("stroke", "#ddd").style("stroke-width", "1px");
+    svg.append("text").attr("x", 50).attr("y", 45).text("0 m").style("font-size", "12px").style("text-anchor", "middle");
+    svg.append("text").attr("x", 200).attr("y", 45).text("1 m").style("font-size", "12px").style("text-anchor", "middle");
+    svg.append("text").attr("x", 350).attr("y", 45).text("3+ m").style("font-size", "12px").style("text-anchor", "middle");
+    svg.append("text").attr("x", 200).attr("y", 65).text("Precipitation →").style("font-size", "11px").style("text-anchor", "middle").style("fill", "#666");
 }

@@ -17,19 +17,28 @@
   <script src="./visuals/melt_logic.js" defer type="module"></script>
   <script src="./visuals/volo_logic.js" defer type="module"></script>
   <script src="./visuals/prec_logic.js" defer type="module"></script>
-  <script src="./visuals/hum_logic.js" defer type="module"></script>
+  <script src="./visuals/hero_logic.js" defer type="module"></script>
+  <script src="./visuals/rain_logic.js" defer type="module"></script>
 </head>
 
 <body>
 
-  <!-- ═══ HERO ═══ -->
-  <header class="hero">
-    <p class="hero-tag">DSC 106 · Data Visualization · 2026</p>
-    <h1>The Vanishing <em>Arctic.</em></h1>
-    <div class="hero-meta">
-      <span>Adam Walters, Joseph Calderon, Summer Garvais, Lyn Mansfield</span>
-      <span>UC San Diego</span>
-      <span>June 2026</span>
+  <!-- ═══ HERO  ═══ -->
+  <header class="hero" id="hero">
+    <div class="hero-stage" id="hero-stage" aria-hidden="true">
+      <img id="hero-image" src="./images/arctic-hero.jpg" alt="" aria-hidden="true">
+      <div class="hero-overlay"></div>
+      <canvas id="hero-rain" aria-hidden="true" tabindex="-1"></canvas>
+    </div>
+    <div class="hero-content" id="hero-content">
+      <p class="hero-tag">DSC 106 · Data Visualization · 2026</p>
+      <h1>The Vanishing <em>Arctic.</em></h1>
+      <div class="hero-meta">
+        <span>Adam Walters, Joseph Calderon, Summer Garvais, Lyn Mansfield</span>
+        <span>UC San Diego</span>
+        <span>June 2026</span>
+      </div>
+      <p class="hero-scroll-hint">Scroll to begin ↓</p>
     </div>
   </header>
 
@@ -42,7 +51,8 @@
     <input type="range" class="slider" id="month-slider" min="1" max="12" step="1" value="1">
     <span class="slider-label" id="month-value">January</span>
     <button id="play-pause-btn" class="play-btn">▶ Play</button>
-    <button id="loop-btn" class="play-btn">🔁</button>
+    <button id="speed-btn" class="play-btn" title="Playback speed">1×</button>
+    <button id="loop-btn" class="play-btn" title="Loop within a single decade">🔁</button>
   </div>
 
   <!-- ═══ SECTION 1: Sea Ice Thickness ═══ -->
@@ -65,27 +75,34 @@
         <p class="step-index">01 &nbsp;/&nbsp; Sea-Ice Changes</p>
         <h2>On thin ice</h2>
         <p>
-          Since the beginning of the industrial revolution (~1850) our polar ice caps have been melting at an alarming rate.
-          Data charting the surface-area-coverage and thickness of sea-ice from 1850-2000 shows just how dire things are.
-          <p>
-          In the arctic circle, sea-ice which would reach down towards North America and Europe has largely been restricted to the most northern
-          tip of the globe. In the south, sea-ice now barely encompasses the borders of Antarctica. Overall, the footprint of sea-ice coverage has 
-          reduced 69% from 1850 to 2000. Even in the areas where sea ice still forms, its thickness has reduced dramatically. 
-          <p>
+          Since the beginning of the industrial revolution (~1850) our polar ice caps have been
+          melting at an alarming rate. Data charting the surface-area-coverage and thickness of
+          sea-ice from 1850-2000 shows just how dire things are.
+        </p>
+        <p>
+          In the arctic circle, sea-ice which would reach down towards North America and Europe has
+          largely been restricted to the most northern tip of the globe. In the south, sea-ice now
+          barely encompasses the borders of Antarctica. Overall, the footprint of sea-ice coverage
+          has reduced 69% from 1850 to 2000. Even in the areas where sea ice still forms, its
+          thickness has reduced dramatically.
         </p>
       </div>
 
       <div class="step" data-step="2">
         <p class="step-index">02 &nbsp;/&nbsp; Climate Change</p>
         <h2>Too hot to handle</h2>
-        <p>Over the past decades, a concensus in the scientific world has taken hold; our climate is changing and humans are to blame. Green house gas emissions
-           from the fossil fuels we use to power our modern lives are emitting gases like carbon dioxide (CO2) which, due to their molecular structure, trap 
-           heat within our atmosphere. 
-           <p>
-           Since we started burning these fuels at scale around the industrial revolution, tons upon tons of these gases
-           have filled our atmosphere and induced a "green house effect," insulating heat from the Sun. This process, alongside mass deforestation, are noted among many experts to be
-           the leading causes of climate change, both of which are a product of human civilization.
-           <p>
+        <p>
+          Over the past decades, a concensus in the scientific world has taken hold; our climate is
+          changing and humans are to blame. Green house gas emissions from the fossil fuels we use to
+          power our modern lives are emitting gases like carbon dioxide (CO2) which, due to their
+          molecular structure, trap heat within our atmosphere.
+        </p>
+        <p>
+          Since we started burning these fuels at scale around the industrial revolution, tons upon
+          tons of these gases have filled our atmosphere and induced a "green house effect,"
+          insulating heat from the Sun. This process, alongside mass deforestation, are noted among
+          many experts to be the leading causes of climate change, both of which are a product of
+          human civilization.
         </p>
       </div>
 
@@ -94,14 +111,14 @@
 
   <!-- ═══ SECTION BREAK ═══ -->
   <div class="section-break">
-    <br><br>
     <p class="section-break-label">A closer look</p>
     <h2>The Real Impact of a Hotter Earth</h2>
     <p> INSERT GRAPH ABOUT WARMING TEMPERATURES IF POSSIBLE</p>
     <p>
-      The impacts of climate change are already apparent on our planet. The World Meteorological Organizatation
-      estimated that the average global temperature of Earth in 2025 was 1.4&deg;C (2.5&deg;F) warmer
-      than pre-industrial levels. This increased heat isn't just effecting our atmosphere, it is warming our oceans too.
+      The impacts of climate change are already apparent on our planet. The World Meteorological
+      Organizatation estimated that the average global temperature of Earth in 2025 was 1.4&deg;C
+      (2.5&deg;F) warmer than pre-industrial levels. This increased heat isn't just effecting our
+      atmosphere, it is warming our oceans too.
     </p>
   </div>
 
@@ -112,27 +129,30 @@
     <div class="steps-column">
 
       <div class="step" data-step="1">
-        <p class="step-index">04 &nbsp;/&nbsp; Cycle Disruption</p>
+        <p class="step-index">03 &nbsp;/&nbsp; Cycle Disruption</p>
         <h2>A delicate balance</h2>
         <p>
-           While a 1.4&deg;C change in temperature may not seem substantial to humans, even small temperature fluctuations can greatly impact 
-          Earth's natural processes, especially the formation of sea-ice. Each year, as the seasons wash over each hemisphere, the polar regions of our
-          Earth go through phases of sea-ice freeze, and melt. However, while this cycle used to be balanced, rising temperatures have caused 
-          to go off course. 
+          While a 1.4&deg;C change in temperature may not seem substantial to humans, even small
+          temperature fluctuations can greatly impact Earth's natural processes, especially the
+          formation of sea-ice. Each year, as the seasons wash over each hemisphere, the polar
+          regions of our Earth go through phases of sea-ice freeze, and melt. However, while this
+          cycle used to be balanced, rising temperatures have caused to go off course.
         </p>
       </div>
 
       <div class="step" data-step="2">
-        <p class="step-index">05 &nbsp;/&nbsp; Ice Melt Flux</p>
+        <p class="step-index">04 &nbsp;/&nbsp; Ice Melt Flux</p>
         <h2>More <em>melt</em>. Less <em>freeze</em>.</h2>
         <p>
-          The shift in the sea-ice creation cycle can be visualized in the shift in "ice melt flux." This statistic shows the
-          kilograms per square meter of ice which is being lost each second. As the months go on, the poles go through these melting and freezing
-          periods, but more recently they have become unbalanced.
+          The shift in the sea-ice creation cycle can be visualized in the shift in "ice melt flux."
+          This statistic shows the kilograms per square meter of ice which is being lost each second.
+          As the months go on, the poles go through these melting and freezing periods, but more
+          recently they have become unbalanced.
         </p>
         <p>
-          Warmer global temperatures means that the melting period of the year is becoming ever longer, as the freezing window becomes more narrow.
-          Simply put, there is more time for ice to melt than there is time for it to freeze.
+          Warmer global temperatures means that the melting period of the year is becoming ever
+          longer, as the freezing window becomes more narrow. Simply put, there is more time for ice
+          to melt than there is time for it to freeze.
         </p>
       </div>
 
@@ -149,53 +169,85 @@
     </div>
 
   </main>
-  <!-- ═══ SECTION BREAK ═══ -->
+
+  <!-- ═══ SECTION 3: Sea-level Rise (Ocean Volume) ═══ -->
   <div class="section-break">
-    <br><br>
     <p class="section-break-label">Sea-level Rise</p>
     <h2>More water, more problems</h2>
-    <br><br>
   </div>
-  <div id="volo-container" class="visualization"></div>
+
   <div class="section-break">
-    <br><br>
     <p>
-      Melting sea-ice is a huge issue for animals which rely on it for their habitat; but the impacts don't end there. When
-      sea-ice melts into water, it expands the capacity of our vast oceans. The balance of the freeze/melt cycle kept our ocean volume
-      in check, until now.
+      Melting sea-ice is a huge issue for animals which rely on it for their habitat; but the
+      impacts don't end there. When sea-ice melts into water, it expands the capacity of our vast
+      oceans. The balance of the freeze/melt cycle kept our ocean volume in check, until now.
     </p>
   </div>
-  
+
+  <div class="chart-section">
+    <div id="volo-container" class="visualization"></div>
+  </div>
+
+  <div class="section-break no-rule">
+    <p>
+      Rapid sea-ice melt from our warming planet is dumping more water into our oceans and sea-levels
+      are rising as a consequence. Higher sea-levels disrupts marine ecosystems and puts habitats and
+      communities along the coasts of our planet at risk of devastation. Sea-level rise may seems like
+      an issue localized to just low-lying areas, but having more surface water exposed to atmosphere
+      can cause more widespread issues.
+    </p>
+  </div>
+
+  <!-- ═══ SECTION 4: Precipitation ═══ -->
+  <section class="prec-section" id="prec-section">
+    <canvas id="rain-canvas" aria-hidden="true" tabindex="-1"></canvas>
+
+    <main class="scrolly">
+
+      <!-- LEFT: sticky precipitation visualization -->
+      <div class="viz-column">
+        <div class="viz-frame">
+          <div id="prec-viz-and-stats" class="viz-container">
+            <div id="prec-container" class="visualization"></div>
+            <div id="prec-overall-stats" class="viz-stats"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: scrolling narrative -->
+      <div class="steps-column">
+
+        <div class="step" data-step="1">
+          <p class="step-index">05 &nbsp;/&nbsp; A Wetter World</p>
+          <h2>What goes up <em>comes down</em></h2>
+          <p>
+            Because a warming atmosphere can hold more moisture (about 7% per 1&deg;C increase in temperature) that moisture must fall out eventually. The accompanied figure displays global rainfall trends each decade. Press play above to view the drastic changes in the distribution of raingall across the Earth.
+          </p>
+        </div>
+
+        <div class="step" data-step="2">
+          <p class="step-index">06 &nbsp;/&nbsp; Shifting Patterns</p>
+          <h2>Rain, redrawn</h2>
+          <p>
+            Global warming does not imply "more rain everywhere." Instead, global warming impacts precipitation patterns by causing heavy rainfall in some areas and increasing drought in other areas. Notice how the zones of high and low rainfall move through time: Global warming that melts the ice also reprograms the water cycle.
+          </p>
+        </div>
+
+      </div>
+    </main>
+  </section>
+
+  <!-- ═══ CLOSING ═══ -->
   <div class="section-break">
-    <p> INSERT GRAPH ABOUT RISING SEA LEVELS IF POSSIBLE</p>
-    <p>Rapid sea-ice melt from our warming planet is dumping more water into our oceans and sea-levels are rising as a consequence.
-       Higher sea-levels disrupts marine ecosystems and puts habitats and 
-      communities along the coasts of our planet at risk of devastation. Sea-level rise may seems like an issue localized to just 
-      low-lying areas, but having more surface water exposed to atmosphere can cause more widespread issues.
+    <p class="section-break-label">What it means</p>
+    <h2>One climate system, <em>one message</em></h2>
+    <p>
+      Melting ice, unbalanced freeze-melt cycles, rising sea levels, and an altered water cycle may seem like four different tales, but they are simply four measurements of the same phenomena: a warming Earth that can no longer be ignored. 
+    </p>
+    <p>
+      The Arctic is undoubtedly disappearing at a rapidly increasing gradual pace, century after century. Review of the ice visualizations reveal that the presence of ice continuiusly shrink. It is of our hope that now one can imagine the next 150 years of these trends and what we can do reverse them.
     </p>
   </div>
-
-  <!-- Testing site for new graphs, feel free to put these elsewhere! -->
-  <div id="volo-container" class="visualization"></div>
-  <div class="new-graph-gay-baby-jail">
-  
-
-    <div class="viz-frame">
-      <div id="prec-viz-and-stats" class="viz-container">
-        <div id="prec-container" class="visualization"></div>
-        <div id="prec-overall-stats" class="viz-stats"></div>
-      </div>
-    </div>
-
-    <div class="viz-frame">
-      <div id="hum-viz-and-stats" class="viz-container">
-        <div id="hum-container" class="visualization"></div>
-        <div id="hum-overall-stats" class="viz-stats"></div>
-      </div>
-    </div>
-  </div>
-
-
 
   <!-- ═══ FOOTER ═══ -->
   <footer class="footer">
