@@ -19,7 +19,9 @@ if (hero && stage && content && canvas) {
 
     let drops = [];
     let viewW = 0, viewH = 0;
+    let pinDist = 1;
     let lastScrollY = window.scrollY;
+    let lastFade = -1;
     let firstFrame = true;
 
     const rand = (a, b) => a + Math.random() * (b - a);
@@ -51,28 +53,25 @@ if (hero && stage && content && canvas) {
         canvas.style.width = viewW + 'px';
         canvas.style.height = viewH + 'px';
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        // Read layout once, here, not inside the frame loop
+        pinDist = Math.max(1, hero.offsetHeight - viewH);
         buildDrops();
-        firstFrame = true; 
+        lastFade = -1;
+        firstFrame = true;
     }
 
-    function pinDistance() { return Math.max(1, hero.offsetHeight - viewH); }
-    function scrollProgress() { return Math.min(1, Math.max(0, window.scrollY / pinDistance())); }
+    function scrollProgress() { return Math.min(1, Math.max(0, window.scrollY / pinDist)); }
     function smoothstep(e0, e1, x) {
         const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
         return t * t * (3 - 2 * t);
     }
 
-    function updatePinAndFades(progress) {
-        // Pin while scrubbing, then release so the image scrolls away into the content
-        if (window.scrollY >= pinDistance()) {
-            stage.style.position = 'absolute';
-            stage.style.top = pinDistance() + 'px';
-        } else {
-            stage.style.position = 'fixed';
-            stage.style.top = '0px';
-        }
-        // Title fades and lifts as you scroll in
-        content.style.opacity = String(1 - smoothstep(0.1, 0.6, progress));
+  
+    function updateTitle(progress) {
+        const fade = 1 - smoothstep(0.1, 0.6, progress);
+        if (Math.abs(fade - lastFade) < 0.002) return;
+        lastFade = fade;
+        content.style.opacity = String(fade);
         content.style.transform = `translateY(${progress * -4}vh)`;
     }
 
@@ -116,7 +115,7 @@ if (hero && stage && content && canvas) {
         // Only do work when scrolling (or once after load/resize)
         if (firstFrame || moving) {
             const progress = scrollProgress();
-            updatePinAndFades(progress);
+            updateTitle(progress);
             drawRain(progress, firstFrame ? 0 : dScroll);
         }
 

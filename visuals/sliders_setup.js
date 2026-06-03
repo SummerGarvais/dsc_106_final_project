@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function setupYearSlider() {
     const slider = document.getElementById('year-slider');
+    slider.setAttribute('step', 'any');
     slider.addEventListener('input', onManualChange);
     slider.setAttribute('list', 'decades');
 
@@ -70,8 +71,17 @@ function setupMonthSlider() {
 // Manual slider interaction
 function onManualChange() {
     if (isPlaying) pauseAnimation();
+    // The year slider is `step="any"` for smooth playback
+    const yslider = document.getElementById('year-slider');
+    yslider.value = Math.round(parseFloat(yslider.value) / 10) * 10;
     playT = ymToFrame(getCurrentYear(), getCurrentMonth());
     updateGraphs();
+}
+
+// Ease-in-out position curve
+function smoothstep(x) {
+    const t = Math.min(1, Math.max(0, x));
+    return t * t * (3 - 2 * t);
 }
 
 function updateGraphs() {
@@ -119,7 +129,8 @@ let speedMultiplier = 1;
 let playRAF = null;
 let lastTs = 0;
 let playT = 0;
-const FRAMES_PER_SEC = 7; 
+const FRAMES_PER_SEC = 7;
+const DECADE_HOLD = 0.9;
 
 function prefetchAhead(year, month, steps = 5) {
     let idx = ymToFrame(year, month);
@@ -154,10 +165,20 @@ function renderAtContinuous(t) {
     renderMeltInterpolated(A.year, A.month, B.year, B.month, f);
     renderPrecInterpolated(A.year, A.month, B.year, B.month, f);
 
-    // Glide the slider thumbs and labels with the continuous playhead
-    document.getElementById('year-slider').value = A.year;
+    // Glide the decade thumb between decades with an inverse-parabolic velocity
+    const decadeIdx = Math.floor(t / 12);
+    let yearThumb;
+    if (isLooping) {
+        yearThumb = 1850 + decadeIdx * 10;
+    } else {
+        const fracDecade = (t - decadeIdx * 12) / 12;
+        const eased = smoothstep((fracDecade - DECADE_HOLD) / (1 - DECADE_HOLD));
+        yearThumb = Math.min(2000, 1850 + decadeIdx * 10 + 10 * eased);
+    }
+
+    document.getElementById('year-slider').value = yearThumb;
     document.getElementById('month-slider').value = Math.min(12, A.month + f);
-    document.getElementById('year-value').textContent = A.year;
+    document.getElementById('year-value').textContent = Math.round(yearThumb / 10) * 10;
     document.getElementById('month-value').textContent = MONTH_NAMES[A.month];
 
     updateSliderLine();
