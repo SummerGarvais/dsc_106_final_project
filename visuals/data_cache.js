@@ -7,6 +7,7 @@ const URL_BUILDERS = {
     ice: (year, mm) => `./data/ice_data/sea_ice_${year}_${mm}.json`,
     melt: (year, mm) => `./data/melt_data/ice_melt_${year}_${mm}.json`,
     prec: (year, mm) => `./data/prec_data/prec_${year}_${mm}.json`,
+    precAnnual: (year) => `./data/prec_annual_data/prec_annual_${year}.json`,
 };
 
 export function cacheKey(type, year, month) {

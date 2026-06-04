@@ -5,12 +5,14 @@ import { getCached, setCached, urlFor, prefetch } from './data_cache.js';
 const MONTH_NAMES = ['', 'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
 const YEARS = d3.range(1850, 2001, 10);
-const DECADE_TIMELINE = YEARS.map(year => ({
+const ANNUAL_YEARS = d3.range(1850, 2001);
+const ANNUAL_TIMELINE = ANNUAL_YEARS.map(year => ({
     year,
     date: new Date(`${year}-07`)
 }));
 const MIN_VIEWPORT_SPAN = 12;
-const SERIES_BATCH_SIZE = 2;
+const SERIES_BATCH_SIZE = 6;
+const SMOOTHING_WINDOW_YEARS = 5;
 
 let currentData = null;
 let currentFrame = null;
@@ -510,13 +512,20 @@ async function loadPrecipFrame(year, month) {
     return data;
 }
 
-async function meanForDecade(year) {
-    const monthlyMeans = await Promise.all(d3.range(1, 13).map(async month => {
-        const frame = await loadPrecipFrame(year, month);
-        return meanForViewport(frame.data);
-    }));
-    const valid = monthlyMeans.filter(Number.isFinite);
-    return valid.length ? d3.mean(valid) : NaN;
+async function loadAnnualPrecipFrame(year) {
+    const cached = getCached('precAnnual', year, 1);
+    if (cached) return cached;
+
+    const response = await fetch(urlFor('precAnnual', year, 1));
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    setCached('precAnnual', year, 1, data);
+    return data;
+}
+
+async function meanForYear(year) {
+    const frame = await loadAnnualPrecipFrame(year);
+    return meanForViewport(frame.data);
 }
 
 async function refreshRegionalSeries() {
@@ -527,11 +536,11 @@ async function refreshRegionalSeries() {
 
     drawMeanChart(true);
 
-    for (let i = 0; i < DECADE_TIMELINE.length; i += SERIES_BATCH_SIZE) {
-        const batch = DECADE_TIMELINE.slice(i, i + SERIES_BATCH_SIZE);
+    for (let i = 0; i < ANNUAL_TIMELINE.length; i += SERIES_BATCH_SIZE) {
+        const batch = ANNUAL_TIMELINE.slice(i, i + SERIES_BATCH_SIZE);
         const loaded = await Promise.all(batch.map(async point => {
             try {
-                return { ...point, value: await meanForDecade(point.year) };
+                return { ...point, value: await meanForYear(point.year) };
             } catch {
                 return { ...point, value: NaN };
             }
@@ -540,8 +549,22 @@ async function refreshRegionalSeries() {
         if (requestId !== seriesRequestId) return;
         points.push(...loaded);
         regionalSeries = points.slice().sort((a, b) => a.date - b.date);
-        drawMeanChart(i + SERIES_BATCH_SIZE < DECADE_TIMELINE.length);
+        drawMeanChart(i + SERIES_BATCH_SIZE < ANNUAL_TIMELINE.length);
     }
+}
+
+function smoothAnnualSeries(series, windowSize = SMOOTHING_WINDOW_YEARS) {
+    const radius = Math.floor(windowSize / 2);
+    return series.map((point, index) => {
+        const neighbors = series
+            .slice(Math.max(0, index - radius), Math.min(series.length, index + radius + 1))
+            .map(d => d.value)
+            .filter(Number.isFinite);
+        return {
+            ...point,
+            value: neighbors.length ? d3.mean(neighbors) : NaN
+        };
+    });
 }
 
 function drawMeanChart(isLoading = false) {
@@ -560,7 +583,8 @@ function drawMeanChart(isLoading = false) {
         .attr('viewBox', `0 0 ${cw} ${ch}`);
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const valid = regionalSeries.filter(d => Number.isFinite(d.value));
+    const smoothedSeries = smoothAnnualSeries(regionalSeries);
+    const valid = smoothedSeries.filter(d => Number.isFinite(d.value));
     if (valid.length < 2) {
         g.append('text')
             .attr('x', innerW / 2)
@@ -574,7 +598,7 @@ function drawMeanChart(isLoading = false) {
     }
 
     const x = d3.scaleTime()
-        .domain(d3.extent(DECADE_TIMELINE, d => d.date))
+        .domain(d3.extent(ANNUAL_TIMELINE, d => d.date))
         .range([0, innerW]);
     const y = d3.scaleLinear()
         .domain(d3.extent(valid, d => d.value * SECONDS_PER_DAY))
@@ -597,15 +621,15 @@ function drawMeanChart(isLoading = false) {
         .call(axis => axis.selectAll('path,line').attr('stroke', 'rgba(255,255,255,0.22)'));
 
     g.append('path')
-        .datum(regionalSeries)
+        .datum(smoothedSeries)
         .attr('d', line)
         .attr('fill', 'none')
         .attr('stroke', '#7fb4dd')
         .attr('stroke-width', 1.8);
 
-    const currentYear = getActiveDecade();
+    const currentYear = getActiveYear();
     const currentDate = new Date(`${currentYear}-07`);
-    const currentPoint = regionalSeries.find(d => d.year === currentYear && Number.isFinite(d.value));
+    const currentPoint = smoothedSeries.find(d => d.year === currentYear && Number.isFinite(d.value));
     const currentX = x(currentDate);
 
     g.append('line')
@@ -638,10 +662,10 @@ function drawMeanChart(isLoading = false) {
     }
 }
 
-function getActiveDecade() {
+function getActiveYear() {
     const frameYear = currentFrame?.year;
     const year = Number.isFinite(frameYear) ? frameYear : getCurrentYear();
-    return clamp(Math.round(year / 10) * 10, YEARS[0], YEARS[YEARS.length - 1]);
+    return clamp(Math.round(year), ANNUAL_YEARS[0], ANNUAL_YEARS[ANNUAL_YEARS.length - 1]);
 }
 
 function handleMouseMove(event) {
