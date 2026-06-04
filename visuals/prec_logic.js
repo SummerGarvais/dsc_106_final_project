@@ -4,9 +4,23 @@ import { getCached, setCached, urlFor, prefetch } from './data_cache.js';
 
 const MONTH_NAMES = ['', 'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
+const YEARS = d3.range(1850, 2001, 10);
+const DECADE_TIMELINE = YEARS.map(year => ({
+    year,
+    date: new Date(`${year}-07`)
+}));
+const MIN_VIEWPORT_SPAN = 12;
+const SERIES_BATCH_SIZE = 2;
 
 let currentData = null;
+let currentFrame = null;
 let colorScale = null;
+let viewport = null;
+let dragState = null;
+let regionalSeries = [];
+let seriesRequestId = 0;
+let seriesTimer = null;
+let seriesViewportKey = null;
 
 const precContainer = document.getElementById('prec-container');
 let width = precContainer.offsetWidth;
@@ -84,6 +98,12 @@ function initializePrecCanvas() {
     resizeCanvas(canvas);
 
     canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    canvas.addEventListener('pointermove', handlePointerMove);
+    canvas.addEventListener('pointerup', endPointerDrag);
+    canvas.addEventListener('pointercancel', endPointerDrag);
+    canvas.addEventListener('dblclick', resetViewport);
     canvas.addEventListener('mouseleave', () => {
         const tooltip = document.querySelector("#prec-tooltip");
         if (tooltip) tooltip.style.visibility = 'hidden';
@@ -98,7 +118,7 @@ function initializePrecCanvas() {
     });
 
     colorScale = d3.scaleSequentialLog().domain([0.01, 5]).interpolator(d3.interpolateBlues);
-    buildLegend();
+    buildRegionPanel();
 }
 
 export async function loadNewPrecData() {
@@ -155,6 +175,7 @@ function paintFrame(values, year, month, units, opts = {}) {
     const ctx = canvas.getContext('2d');
     const ny = values.length;
     const nx = values[0].length;
+    ensureViewport(nx, ny);
 
     // B-frame interpolation 
     const B = opts.b || null;
@@ -202,36 +223,185 @@ function paintFrame(values, year, month, units, opts = {}) {
     offCtx.putImageData(offImg, 0, 0);
 
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(offCanvas, 0, 0, width, height);
+    ctx.clearRect(0, 0, width, height);
+    drawViewport(ctx);
 
     drawAnnotations(ctx, year, month);
+    currentFrame = { values, year, month, units, b: B, f };
+    updateRegionStats(values, B, f);
     updateLegend(minPrecip, maxPrecip);
+    drawMeanChart();
+    scheduleSeriesRefresh();
 }
 
 function drawAnnotations(ctx, year, month) {
     const monthName = MONTH_NAMES[month] || month;
     const titleSize = Math.max(11, Math.min(16, width / 28));
     ctx.font = `500 ${titleSize}px system-ui, sans-serif`;
-    ctx.fillStyle = 'rgba(26,26,24,0.75)';
+    ctx.fillStyle = 'rgba(233,238,244,0.84)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(`Precipitation · ${monthName} ${year}`, width / 2, 20);
 }
 
-// Build the legend shell once
-function buildLegend() {
+function ensureViewport(nx, ny) {
+    if (!viewport) {
+        viewport = { x0: 0, y0: 0, x1: nx, y1: ny };
+        return;
+    }
+    viewport.x0 = clamp(viewport.x0, 0, nx - MIN_VIEWPORT_SPAN);
+    viewport.y0 = clamp(viewport.y0, 0, ny - MIN_VIEWPORT_SPAN);
+    viewport.x1 = clamp(viewport.x1, viewport.x0 + MIN_VIEWPORT_SPAN, nx);
+    viewport.y1 = clamp(viewport.y1, viewport.y0 + MIN_VIEWPORT_SPAN, ny);
+}
+
+function drawViewport(ctx) {
+    if (!viewport) {
+        ctx.drawImage(offCanvas, 0, 0, width, height);
+        return;
+    }
+    ctx.drawImage(
+        offCanvas,
+        viewport.x0,
+        viewport.y0,
+        viewport.x1 - viewport.x0,
+        viewport.y1 - viewport.y0,
+        0,
+        0,
+        width,
+        height
+    );
+}
+
+function screenToGrid(x, y) {
+    if (!viewport) return { x, y };
+    return {
+        x: viewport.x0 + (x / width) * (viewport.x1 - viewport.x0),
+        y: viewport.y0 + (y / height) * (viewport.y1 - viewport.y0)
+    };
+}
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function clampViewport() {
+    if (!currentData?.data || !viewport) return;
+    const ny = currentData.data.length;
+    const nx = currentData.data[0].length;
+    const spanX = viewport.x1 - viewport.x0;
+    const spanY = viewport.y1 - viewport.y0;
+
+    if (viewport.x0 < 0) { viewport.x1 -= viewport.x0; viewport.x0 = 0; }
+    if (viewport.y0 < 0) { viewport.y1 -= viewport.y0; viewport.y0 = 0; }
+    if (viewport.x1 > nx) { viewport.x0 -= viewport.x1 - nx; viewport.x1 = nx; }
+    if (viewport.y1 > ny) { viewport.y0 -= viewport.y1 - ny; viewport.y1 = ny; }
+
+    viewport.x0 = clamp(viewport.x0, 0, Math.max(0, nx - spanX));
+    viewport.y0 = clamp(viewport.y0, 0, Math.max(0, ny - spanY));
+    viewport.x1 = viewport.x0 + spanX;
+    viewport.y1 = viewport.y0 + spanY;
+}
+
+function repaintCurrentFrame() {
+    if (!currentFrame) return;
+    paintFrame(currentFrame.values, currentFrame.year, currentFrame.month, currentFrame.units, {
+        b: currentFrame.b,
+        f: currentFrame.f
+    });
+}
+
+function resetViewport() {
+    if (!currentData?.data) return;
+    const ny = currentData.data.length;
+    const nx = currentData.data[0].length;
+    viewport = { x0: 0, y0: 0, x1: nx, y1: ny };
+    regionalSeries = [];
+    seriesViewportKey = null;
+    repaintCurrentFrame();
+    refreshRegionalSeries();
+}
+
+function handleWheel(event) {
+    if (!currentData?.data || !viewport) return;
+    event.preventDefault();
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const focus = screenToGrid(event.clientX - rect.left, event.clientY - rect.top);
+    const zoomFactor = event.deltaY < 0 ? 0.82 : 1.18;
+    const spanX = viewport.x1 - viewport.x0;
+    const spanY = viewport.y1 - viewport.y0;
+    const newSpanX = clamp(spanX * zoomFactor, MIN_VIEWPORT_SPAN, currentData.data[0].length);
+    const newSpanY = clamp(spanY * zoomFactor, MIN_VIEWPORT_SPAN, currentData.data.length);
+    const fx = (focus.x - viewport.x0) / spanX;
+    const fy = (focus.y - viewport.y0) / spanY;
+
+    viewport = {
+        x0: focus.x - newSpanX * fx,
+        y0: focus.y - newSpanY * fy,
+        x1: focus.x + newSpanX * (1 - fx),
+        y1: focus.y + newSpanY * (1 - fy)
+    };
+    clampViewport();
+    regionalSeries = [];
+    seriesViewportKey = null;
+    repaintCurrentFrame();
+}
+
+function handlePointerDown(event) {
+    if (!currentData?.data || !viewport) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragState = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        viewport: { ...viewport }
+    };
+}
+
+function handlePointerMove(event) {
+    if (!dragState || dragState.pointerId !== event.pointerId || !viewport) return;
+    const dx = (event.clientX - dragState.x) / width * (dragState.viewport.x1 - dragState.viewport.x0);
+    const dy = (event.clientY - dragState.y) / height * (dragState.viewport.y1 - dragState.viewport.y0);
+    viewport = {
+        x0: dragState.viewport.x0 - dx,
+        y0: dragState.viewport.y0 - dy,
+        x1: dragState.viewport.x1 - dx,
+        y1: dragState.viewport.y1 - dy
+    };
+    clampViewport();
+    repaintCurrentFrame();
+}
+
+function endPointerDrag(event) {
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    dragState = null;
+    regionalSeries = [];
+    seriesViewportKey = null;
+    scheduleSeriesRefresh();
+}
+
+// Build the region summary and chart shell once
+function buildRegionPanel() {
     const div = document.getElementById('prec-overall-stats');
     if (!div) return;
-    div.className = 'viz-stats';
-    div.innerHTML = `<div class="legend">
-        <span class="legend-label">Rainfall rate (mm/day)</span>
-        <span class="ramp">
-            <span id="prec-leg-min">—</span>
-            <span class="bar" style="background:linear-gradient(to right,#084594,#fed976,#ffffff)"></span>
-            <span id="prec-leg-max">—</span>
-        </span>
-        <span class="sw">drier → wetter</span>
-    </div>`;
+    div.className = 'viz-stats prec-region-panel';
+    div.innerHTML = `
+        <div class="prec-region-topline">
+            <span id="prec-region-label">Global region</span>
+            <strong id="prec-region-mean">—</strong>
+            <button id="prec-reset-btn" type="button">Reset</button>
+        </div>
+        <div class="legend">
+            <span class="legend-label">Rainfall rate (mm/day)</span>
+            <span class="ramp">
+                <span id="prec-leg-min">—</span>
+                <span class="bar" style="background:linear-gradient(to right,#084594,#fed976,#ffffff)"></span>
+                <span id="prec-leg-max">—</span>
+            </span>
+        </div>
+        <div id="prec-mean-chart" class="prec-mean-chart"></div>`;
+    document.getElementById('prec-reset-btn')?.addEventListener('click', resetViewport);
 }
 
 // Convert precipitation in m/s to mm/day and format for display
@@ -250,6 +420,230 @@ function updateLegend(min, max) {
     if (hi) hi.textContent = fmtMmPerDay(max);
 }
 
+function valueAt(values, bValues, f, px, py) {
+    const ny = values.length;
+    const rowIndex = ny - py - 1;
+    const a = values[rowIndex]?.[px];
+    const b = bValues ? bValues[rowIndex]?.[px] : null;
+    if (!bValues) return a;
+    const aBad = a === null || Number.isNaN(a);
+    const bBad = b === null || Number.isNaN(b);
+    if (aBad && bBad) return NaN;
+    if (aBad) return b;
+    if (bBad) return a;
+    return a + (b - a) * f;
+}
+
+function meanForViewport(values, bValues = null, f = 0) {
+    if (!values || !viewport) return NaN;
+    const ny = values.length;
+    const nx = values[0].length;
+    const x0 = clamp(Math.floor(viewport.x0), 0, nx - 1);
+    const x1 = clamp(Math.ceil(viewport.x1), x0 + 1, nx);
+    const y0 = clamp(Math.floor(viewport.y0), 0, ny - 1);
+    const y1 = clamp(Math.ceil(viewport.y1), y0 + 1, ny);
+    let sum = 0;
+    let count = 0;
+
+    for (let py = y0; py < y1; py++) {
+        for (let px = x0; px < x1; px++) {
+            const value = valueAt(values, bValues, f, px, py);
+            if (value !== null && Number.isFinite(value)) {
+                sum += value;
+                count++;
+            }
+        }
+    }
+
+    return count ? sum / count : NaN;
+}
+
+function viewportLabel() {
+    if (!currentData?.data || !viewport) return 'Global region';
+    const ny = currentData.data.length;
+    const nx = currentData.data[0].length;
+    const full = viewport.x0 <= 0.5 && viewport.y0 <= 0.5 &&
+        viewport.x1 >= nx - 0.5 && viewport.y1 >= ny - 0.5;
+    if (full) return 'Global region';
+
+    const lon0 = viewport.x0 / nx * 360 - 180;
+    const lon1 = viewport.x1 / nx * 360 - 180;
+    const latTop = 90 - viewport.y0 / ny * 180;
+    const latBottom = 90 - viewport.y1 / ny * 180;
+    return `${formatCoord(latBottom, 'S', 'N')}–${formatCoord(latTop, 'S', 'N')}, ${formatCoord(lon0, 'W', 'E')}–${formatCoord(lon1, 'W', 'E')}`;
+}
+
+function formatCoord(value, negSuffix, posSuffix) {
+    const suffix = value < 0 ? negSuffix : posSuffix;
+    return `${Math.abs(value).toFixed(0)}°${suffix}`;
+}
+
+function updateRegionStats(values, bValues = null, f = 0) {
+    const label = document.getElementById('prec-region-label');
+    const mean = document.getElementById('prec-region-mean');
+    if (label) label.textContent = viewportLabel();
+    if (mean) mean.textContent = `${fmtMmPerDay(meanForViewport(values, bValues, f))} mm/day`;
+}
+
+function scheduleSeriesRefresh() {
+    const key = getViewportKey();
+    if (key === seriesViewportKey && regionalSeries.length) return;
+    clearTimeout(seriesTimer);
+    seriesTimer = setTimeout(refreshRegionalSeries, 220);
+}
+
+function getViewportKey() {
+    if (!viewport) return 'none';
+    return [viewport.x0, viewport.y0, viewport.x1, viewport.y1]
+        .map(v => v.toFixed(2))
+        .join(',');
+}
+
+async function loadPrecipFrame(year, month) {
+    const cached = getCached('prec', year, month);
+    if (cached) return cached;
+
+    const response = await fetch(urlFor('prec', year, month));
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    setCached('prec', year, month, data);
+    return data;
+}
+
+async function meanForDecade(year) {
+    const monthlyMeans = await Promise.all(d3.range(1, 13).map(async month => {
+        const frame = await loadPrecipFrame(year, month);
+        return meanForViewport(frame.data);
+    }));
+    const valid = monthlyMeans.filter(Number.isFinite);
+    return valid.length ? d3.mean(valid) : NaN;
+}
+
+async function refreshRegionalSeries() {
+    if (!viewport) return;
+    const requestId = ++seriesRequestId;
+    seriesViewportKey = getViewportKey();
+    const points = [];
+
+    drawMeanChart(true);
+
+    for (let i = 0; i < DECADE_TIMELINE.length; i += SERIES_BATCH_SIZE) {
+        const batch = DECADE_TIMELINE.slice(i, i + SERIES_BATCH_SIZE);
+        const loaded = await Promise.all(batch.map(async point => {
+            try {
+                return { ...point, value: await meanForDecade(point.year) };
+            } catch {
+                return { ...point, value: NaN };
+            }
+        }));
+
+        if (requestId !== seriesRequestId) return;
+        points.push(...loaded);
+        regionalSeries = points.slice().sort((a, b) => a.date - b.date);
+        drawMeanChart(i + SERIES_BATCH_SIZE < DECADE_TIMELINE.length);
+    }
+}
+
+function drawMeanChart(isLoading = false) {
+    const chart = document.getElementById('prec-mean-chart');
+    if (!chart) return;
+
+    chart.innerHTML = '';
+    const cw = Math.max(220, chart.clientWidth || 360);
+    const ch = Math.max(92, chart.clientHeight || 110);
+    const margin = { top: 10, right: 16, bottom: 24, left: 34 };
+    const innerW = cw - margin.left - margin.right;
+    const innerH = ch - margin.top - margin.bottom;
+    const svg = d3.select(chart).append('svg')
+        .attr('width', cw)
+        .attr('height', ch)
+        .attr('viewBox', `0 0 ${cw} ${ch}`);
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const valid = regionalSeries.filter(d => Number.isFinite(d.value));
+    if (valid.length < 2) {
+        g.append('text')
+            .attr('x', innerW / 2)
+            .attr('y', innerH / 2)
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'middle')
+            .attr('fill', '#95a3b2')
+            .attr('font-size', 11)
+            .text(isLoading ? 'Loading regional rainfall…' : 'Regional rainfall');
+        return;
+    }
+
+    const x = d3.scaleTime()
+        .domain(d3.extent(DECADE_TIMELINE, d => d.date))
+        .range([0, innerW]);
+    const y = d3.scaleLinear()
+        .domain(d3.extent(valid, d => d.value * SECONDS_PER_DAY))
+        .nice()
+        .range([innerH, 0]);
+    const line = d3.line()
+        .defined(d => Number.isFinite(d.value))
+        .x(d => x(d.date))
+        .y(d => y(d.value * SECONDS_PER_DAY));
+
+    g.append('g')
+        .attr('transform', `translate(0,${innerH})`)
+        .call(d3.axisBottom(x).ticks(4).tickFormat(d3.timeFormat('%Y')))
+        .call(axis => axis.selectAll('text').attr('fill', '#95a3b2').attr('font-size', 10))
+        .call(axis => axis.selectAll('path,line').attr('stroke', 'rgba(255,255,255,0.22)'));
+
+    g.append('g')
+        .call(d3.axisLeft(y).ticks(3))
+        .call(axis => axis.selectAll('text').attr('fill', '#95a3b2').attr('font-size', 10))
+        .call(axis => axis.selectAll('path,line').attr('stroke', 'rgba(255,255,255,0.22)'));
+
+    g.append('path')
+        .datum(regionalSeries)
+        .attr('d', line)
+        .attr('fill', 'none')
+        .attr('stroke', '#7fb4dd')
+        .attr('stroke-width', 1.8);
+
+    const currentYear = getActiveDecade();
+    const currentDate = new Date(`${currentYear}-07`);
+    const currentPoint = regionalSeries.find(d => d.year === currentYear && Number.isFinite(d.value));
+    const currentX = x(currentDate);
+
+    g.append('line')
+        .attr('x1', currentX)
+        .attr('x2', currentX)
+        .attr('y1', 0)
+        .attr('y2', innerH)
+        .attr('stroke', '#ff6b6b')
+        .attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', '4,4');
+
+    if (currentPoint) {
+        g.append('circle')
+            .attr('cx', currentX)
+            .attr('cy', y(currentPoint.value * SECONDS_PER_DAY))
+            .attr('r', 3.5)
+            .attr('fill', '#ff6b6b')
+            .attr('stroke', '#0b1018')
+            .attr('stroke-width', 1.5);
+    }
+
+    if (isLoading) {
+        svg.append('text')
+            .attr('x', cw - 8)
+            .attr('y', 12)
+            .attr('text-anchor', 'end')
+            .attr('fill', '#95a3b2')
+            .attr('font-size', 10)
+            .text('loading');
+    }
+}
+
+function getActiveDecade() {
+    const frameYear = currentFrame?.year;
+    const year = Number.isFinite(frameYear) ? frameYear : getCurrentYear();
+    return clamp(Math.round(year / 10) * 10, YEARS[0], YEARS[YEARS.length - 1]);
+}
+
 function handleMouseMove(event) {
     if (!currentData) return;
     if ('ontouchstart' in window) return;
@@ -266,11 +660,14 @@ function handleMouseMove(event) {
 
     const nx = precData[0].length;
     const ny = precData.length;
-    const i = Math.floor(mouseX / rect.width * nx);
-    const j = Math.floor(mouseY / rect.height * ny);
+    const gridPoint = screenToGrid(mouseX, mouseY);
+    const i = Math.floor(gridPoint.x);
+    const j = Math.floor(gridPoint.y);
 
     if (i >= 0 && i < nx && j >= 0 && j < ny) {
-        const precLevel = precData[ny - j - 1][i];
+        const precLevel = currentFrame
+            ? valueAt(currentFrame.values, currentFrame.b, currentFrame.f, i, j)
+            : precData[ny - j - 1][i];
         updateToolTip(event, precLevel);
         updatePointStats(i, j, precLevel);
     }
@@ -298,10 +695,12 @@ function updatePointStats(i, j, precLevel) {
     const pointStatsDiv = document.getElementById('prec-point-stats');
     if (!pointStatsDiv) return;
     const val = (precLevel !== null && !isNaN(precLevel)) ? `${fmtMmPerDay(precLevel)} mm/day` : '≈0 mm/day';
+    const lon = i / currentData.data[0].length * 360 - 180;
+    const lat = 90 - j / currentData.data.length * 180;
     pointStatsDiv.innerHTML = `
-        📍 <strong>Location:</strong> (${i}, ${j}) |
+        <strong>Location:</strong> ${formatCoord(lat, 'S', 'N')}, ${formatCoord(lon, 'W', 'E')} |
         <strong>Precipitation:</strong> ${val}<br>
-        <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
+        <span style="font-size: 12px; color: #666;">Visible-region mean updates with zoom</span>
     `;
 }
 

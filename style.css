@@ -497,3 +497,79 @@ h1 {
   z-index: 5;
   display: block;
 }
+
+#prec-viz-and-stats {
+  gap: 0.6rem;
+  padding: 0.75rem;
+}
+
+#prec-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  overflow: hidden;
+  cursor: grab;
+}
+
+#prec-container:active {
+  cursor: grabbing;
+}
+
+#prec-canvas {
+  touch-action: none;
+}
+
+.prec-region-panel {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: 0;
+  text-align: left;
+}
+
+.prec-region-topline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.68rem;
+}
+
+#prec-region-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+#prec-region-mean {
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#prec-reset-btn {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: 500 0.68rem var(--sans);
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+#prec-reset-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.prec-mean-chart {
+  width: 100%;
+  height: 110px;
+  margin-top: 0.35rem;
+}
+
+.prec-region-panel .legend {
+  justify-content: flex-start;
+  gap: 0.3rem 0.55rem;
+}
