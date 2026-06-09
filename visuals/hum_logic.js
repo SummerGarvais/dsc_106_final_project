@@ -124,17 +124,17 @@ export function renderHumInterpolated(yA, mA, yB, mB, f) {
 // 11 flux levels (dry → wet) as RGB, plus land, for direct ImageData writes
 // Now: blue (dry, value=0) → yellow (humid, value=0.02)
 const HUM_RGB = [
-    [139, 0, 0],     // 0.0180+  deep angry red (most humid)
-    [180, 0, 0],     // ~0.0162  dark red
-    [220, 0, 0],     // ~0.0144  bright red
-    [255, 0, 0],     // ~0.0126  pure red
-    [255, 64, 0],    // ~0.0108  red-orange
-    [255, 128, 0],   // ~0.0090  orange (mid-point)
-    [255, 192, 0],   // ~0.0072  orange-yellow
-    [255, 255, 0],   // ~0.0054  yellow
-    [128, 255, 128], // ~0.0036  light green
-    [0, 128, 255],   // ~0.0018  light blue
-    [0, 0, 255]      // 0.0000  deep blue (driest)
+    [139, 30, 30],   // 0.0180+  desaturated angry red (most humid)
+    [160, 60, 60],   // ~0.0162  muted dark red
+    [180, 70, 70],   // ~0.0144  muted red
+    [200, 85, 75],   // ~0.0126  muted red-orange
+    [210, 110, 70],  // ~0.0108  muted orange
+    [200, 140, 80],  // ~0.0090  muted orange-brown (mid-point)
+    [170, 160, 90],  // ~0.0072  muted yellow-brown
+    [140, 170, 110], // ~0.0054  muted olive/green
+    [100, 160, 140], // ~0.0036  muted teal
+    [70, 120, 170],  // ~0.0018  muted light blue
+    [50, 70, 140]    // 0.0000  deep muted blue (driest)
 ];
 const HUM_LAND = [224, 224, 224];
 
@@ -143,10 +143,10 @@ function HUMRGB(value) {
     if (value >= 0.019) return HUM_RGB[0];   // 0.018 - 0.02
     if (value >= 0.018) return HUM_RGB[1];   // 0.016 - 0.018
     if (value >= 0.017) return HUM_RGB[2];   // 0.014 - 0.016
-    if (value >= 0.014) return HUM_RGB[3];   // 0.012 - 0.014
-    if (value >= 0.012) return HUM_RGB[4];   // 0.010 - 0.012
-    if (value >= 0.010) return HUM_RGB[5];   // 0.008 - 0.010
-    if (value >= 0.008) return HUM_RGB[6];   // 0.006 - 0.008
+    if (value >= 0.015) return HUM_RGB[3];   // 0.012 - 0.014
+    if (value >= 0.013) return HUM_RGB[4];   // 0.010 - 0.012
+    if (value >= 0.011) return HUM_RGB[5];   // 0.008 - 0.010
+    if (value >= 0.009) return HUM_RGB[6];   // 0.006 - 0.008
     if (value >= 0.006) return HUM_RGB[7];   // 0.004 - 0.006
     if (value >= 0.004) return HUM_RGB[8];   // 0.002 - 0.004
     if (value >= 0.002) return HUM_RGB[9];   // 0.001 - 0.002
@@ -216,7 +216,7 @@ function drawAnnotations(ctx, year, month) {
     ctx.fillStyle = 'rgba(26,26,24,0.75)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`Humidity Change · ${monthName} ${year}`, width / 2, 20);
+    ctx.fillText(`Specific Humidity · ${monthName} ${year}`, width / 2, 20);
 }
 
 // Static legend with numeric flux endpoints
@@ -225,13 +225,12 @@ function buildLegend() {
     if (!div) return;
     div.className = 'viz-stats';
     div.innerHTML = `<div class="legend">
-        <span class="legend-label">Daily humidity change (mm/day, water-equiv.)</span>
+        <span class="legend-label">Near-Surface Specific Humidity</span>
         <span class="ramp">
-            <span>dry −78</span>
-            <span class="bar" style="background:linear-gradient(to right,#e34a33,#f97e3c,#f0f8ff,#367ebd,#084594)"></span>
-            <span>+78 wet</span>
+            <span>Dry 0.00</span>
+            <span class="bar" style="background:linear-gradient(to right,#3a5c8c,#6498c4,#a6c7c7,#d6d4aa,#e8b87a,#aa4c3a,#8b3a2a)"></span>
+            <span>0.02 Wet</span>
         </span>
-        <span class="sw"><i style="background:#f0f8ff"></i>0 (no change)</span>
     </div>`;
 }
 
@@ -255,7 +254,7 @@ function handleMouseMove(event) {
     const j = Math.floor(mouseY / rect.height * ny);
 
     if (i >= 0 && i < nx && j >= 0 && j < ny) {
-        const hum = humData[ny - j - 1][nx - i - 1];
+        const hum = humData[ny - j - 1][i];
         updateToolTip(event, hum);
         updatePointStats(i, j, hum);
     }
@@ -271,9 +270,9 @@ function updateToolTip(event, hum) {
     }
     tooltip.style.visibility = 'visible';
     if (hum !== null && !isNaN(hum)) {
-        tooltip.innerHTML = `❄️ ${hum}`;
+        tooltip.innerHTML = `💦 ${hum.toFixed(4)}`;
     } else {
-        tooltip.innerHTML = `🌊 No sea ice / Land`;
+        tooltip.innerHTML = `🌊 No Data`;
     }
     tooltip.style.left = event.pageX + 'px';
     tooltip.style.top = event.pageY + 'px';
@@ -285,7 +284,7 @@ function updatePointStats(i, j, hum) {
     const val = hum;
     pointStatsDiv.innerHTML = `
         📍 <strong>Location:</strong> (${i}, ${j}) |
-        <strong>Humidity change:</strong> ${val}<br>
+        <strong>Humidity:</strong> ${val.toFixed(4)}<br>
         <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
     `;
 }
