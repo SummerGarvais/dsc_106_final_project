@@ -8,6 +8,7 @@ const URL_BUILDERS = {
     melt: (year, mm) => `./data/melt_data/ice_melt_${year}_${mm}.json`,
     prec: (year, mm) => `./data/prec_data/prec_${year}_${mm}.json`,
     precAnnual: (year) => `./data/prec_annual_data/prec_annual_${year}.json`,
+    hum: (year, mm) => `./data/hum_data/hum_${year}_${mm}.json`,
 };
 
 export function cacheKey(type, year, month) {

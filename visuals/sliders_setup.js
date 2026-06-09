@@ -2,6 +2,7 @@ import { loadNewIceData, renderIceInterpolated } from './ice_logic.js';
 import { loadNewMeltData, renderMeltInterpolated } from './melt_logic.js';
 import { updateSliderLine } from './volo_logic.js';
 import { loadNewPrecData, renderPrecInterpolated } from './prec_logic.js';
+import { loadNewHumData, renderHumInterpolated } from './hum_logic.js';
 import { prefetch } from './data_cache.js';
 
 const MONTH_NAMES = ['', 'January', 'February', 'March', 'April', 'May', 'June',
@@ -93,6 +94,7 @@ function updateGraphs() {
     loadNewMeltData();
     updateSliderLine();
     loadNewPrecData();
+    loadNewHumData();
 }
 
 export function getCurrentYear() {
@@ -164,6 +166,7 @@ function renderAtContinuous(t) {
     renderIceInterpolated(A.year, A.month, B.year, B.month, f);
     renderMeltInterpolated(A.year, A.month, B.year, B.month, f);
     renderPrecInterpolated(A.year, A.month, B.year, B.month, f);
+    renderHumInterpolated(A.year, A.month, B.year, B.month, f);
 
     // Glide the decade thumb between decades with an inverse-parabolic velocity
     const decadeIdx = Math.floor(t / 12);
