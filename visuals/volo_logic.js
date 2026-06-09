@@ -78,7 +78,7 @@ function setupScrollAnimation() {
                 observer.disconnect();
             }
         });
-    }, { threshold: 0.3, rootMargin: '0px 0px -50px 0px' });
+    }, { threshold: 0.8, rootMargin: '0px 0px -50px 0px' });
 
     observer.observe(container);
 }
@@ -91,7 +91,7 @@ async function loadData() {
 
     timeSeriesDataGlobal = Object.entries(data).map(([date, value]) => ({
         date: new Date(date),
-        value: parseFloat(value)
+        value: (parseFloat(value) - 1) * 100
     })).sort((a, b) => a.date - b.date);
 
     seaLevelDataGlobal = parseSeaLevelData(seaLevelRaw).filter(d => d.date <= xScaleDomainEnd(data));
@@ -138,7 +138,13 @@ function render() {
     const xAxis = d3.axisBottom(xScale)
         .ticks(xTickCount)
         .tickFormat(d3.timeFormat("%Y-%m"));
-    const yAxis = d3.axisLeft(yScale).ticks(6);
+    const yAxis = d3.axisLeft(yScale)
+        .ticks(6)
+        .tickFormat(d => {
+            if (d > 0) return `+${d.toFixed(4)}%`;
+            if (d < 0) return `${d.toFixed(4)}%`;
+            return `${d.toFixed(4)}%`;
+        });;
     const seaLevelYAxis = d3.axisRight(seaLevelYScale).ticks(6);
 
     svg.append("g")
@@ -148,7 +154,10 @@ function render() {
         .attr("transform", "rotate(-45)")
         .style("text-anchor", "end");
 
-    svg.append("g").call(yAxis);
+    svg.append("g")
+        .call(yAxis)
+        .selectAll("text")
+        .style("fill", "#3498db");
 
     svg.append("g")
         .attr("transform", `translate(${width},0)`)
@@ -169,13 +178,13 @@ function render() {
         .attr("x", -height / 2)
         .attr("y", -margin.left + 18)
         .attr("text-anchor", "middle")
-        .style("fill", "#9fb0bf")
-        .text("Ocean Volume");
+        .style("fill", "#3498db")
+        .text("Ocean Volume (% change from 1850)");
 
     svg.append("text")
         .attr("transform", "rotate(90)")
         .attr("x", height / 2)
-        .attr("y", -width - margin.right + 16)
+        .attr("y", -width - margin.right + 40)
         .attr("text-anchor", "middle")
         .style("fill", "#c0392b")
         .text("Sea Level Change (mm)");
@@ -214,7 +223,7 @@ function render() {
         .style("font-size", "16px")
         .style("font-weight", "bold")
         .style("fill", "#e9eef4")
-        .text("Ocean Volume Over Time");
+        .text("Ocean Volume/Sea Level Over Time");
 
     // Current-position marker 
     svg.append("line")
@@ -313,7 +322,8 @@ function addLegend() {
 
     legend.append("text")
         .attr("x", 32).attr("y", 4)
-        .style("font-size", "12px").style("fill", "#9fb0bf")
+        .style("font-size", "12px")
+        .style("fill", "#9fb0bf")
         .text("Ocean volume");
 
     legend.append("line")
@@ -324,7 +334,8 @@ function addLegend() {
 
     legend.append("text")
         .attr("x", 182).attr("y", 4)
-        .style("font-size", "12px").style("fill", "#9fb0bf")
+        .style("font-size", "12px")
+        .style("fill", "#9fb0bf")
         .text("CMIP6 sea level");
 }
 
@@ -341,7 +352,7 @@ function updateHoverLine(mouseDateStr) {
     if (data[mouseDateStr] === undefined) return;
 
     const x = xScale(new Date(mouseDateStr));
-    const y = yScale(data[mouseDateStr]);
+    const y = yScale((data[mouseDateStr] - 1) * 100);
     const seaLevelPoint = findSeaLevelPoint(mouseDateStr);
 
     svg.select('.hover-line')
@@ -354,13 +365,11 @@ function updateHoverLine(mouseDateStr) {
         .attr('cx', x).attr('cy', y)
         .style('opacity', 1);
 
-    if (seaLevelPoint) {
-        svg.select('.sea-level-hover-point')
-            .transition().duration(10)
-            .attr('cx', xScale(seaLevelPoint.date))
-            .attr('cy', seaLevelYScale(seaLevelPoint.value))
-            .style('opacity', 1);
-    }
+    svg.select('.sea-level-hover-point')
+        .transition().duration(10)
+        .attr('cx', xScale(seaLevelPoint.date))
+        .attr('cy', seaLevelYScale(seaLevelPoint.value))
+        .style('opacity', 1);
 }
 
 function updateToolTip(event, mouseDateStr) {
@@ -381,13 +390,18 @@ function updateToolTip(event, mouseDateStr) {
 
     const scaleFactor = 1.3300564e18;
     const factorChange = data[mouseDateStr];
-    const relativeChange = scaleFactor * (factorChange - 1);
+    const relativeChange = (factorChange - 1) * 100;
+    const relativeChangeStr = relativeChange > 0 ? `+${relativeChange.toFixed(4)}%` : `${relativeChange.toFixed(4)}%`;
+    const volumeChange = scaleFactor * (factorChange - 1);
+    const volumeChangeStr = volumeChange > 0 ? `+${volumeChange.toExponential(3)}` : `${volumeChange.toExponential(3)}`;
     const seaLevelPoint = findSeaLevelPoint(mouseDateStr);
     const seaLevelText = seaLevelPoint
-        ? `<br>CMIP6 sea level: ${seaLevelPoint.value.toFixed(2)} mm`
+        ? `CMIP6 sea level change: ${seaLevelPoint.value.toFixed(2)} mm`
         : "";
 
-    tooltip.innerHTML = `${humanReadableDate}: ${data[mouseDateStr]} (${relativeChange.toExponential(3)} m³)${seaLevelText}`;
+    tooltip.innerHTML = `${humanReadableDate}:<br>
+    Ocean volume change: ${relativeChangeStr} (${volumeChangeStr} m³)<br>
+    ${seaLevelText}`;
 
     tooltip.style.left = tooltipX + 'px';
     tooltip.style.top = tooltipY + 'px';
