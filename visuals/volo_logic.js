@@ -17,6 +17,7 @@ const container = document.getElementById('volo-container');
 
 document.addEventListener('DOMContentLoaded', async function () {
     await loadData();
+    setupScrollAnimation();
     render();
 
     // Rerender responsively on container resize
@@ -26,6 +27,61 @@ document.addEventListener('DOMContentLoaded', async function () {
         resizeTimer = setTimeout(() => render(), 120);
     }).observe(container);
 });
+
+// --- Scroll Animation Setup ---
+let animationTriggered = false;
+let observer = null;
+
+function animatePathDrawing(svgElement, duration = 1500) {
+    if (!svgElement) return;
+
+    svgElement.selectAll(".line, .sea-level-line")
+        .each(function () {
+            const path = d3.select(this);
+
+            // Force DOM to compute the path
+            const length = this.getTotalLength();
+
+            // Make visible first
+            path.style("opacity", 1);
+
+            if (length > 0 && isFinite(length)) {
+                // Set initial hidden state
+                path.attr("stroke-dasharray", `${length} ${length}`)
+                    .attr("stroke-dashoffset", length);
+
+                // Animate to visible
+                path.transition()
+                    .duration(duration)
+                    .ease(d3.easeCubicOut)
+                    .attr("stroke-dashoffset", 0);
+            } else {
+                console.warn("Invalid path length, skipping animation");
+                // Just show the path without animation
+                path.attr("stroke-dasharray", "none");
+            }
+        });
+}
+
+function setupScrollAnimation() {
+    // Create intersection observer (modern approach)
+    console.log("Setting up IntersectionObserver for volo graph animation");
+    observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !animationTriggered) {
+                animationTriggered = true;
+                console.log("Volo graph entered viewport, starting animation");
+                if (svg) {
+                    animatePathDrawing(svg);
+                }
+
+                observer.disconnect();
+            }
+        });
+    }, { threshold: 0.3, rootMargin: '0px 0px -50px 0px' });
+
+    observer.observe(container);
+}
 
 // Load once
 async function loadData() {
@@ -124,29 +180,30 @@ function render() {
         .style("fill", "#c0392b")
         .text("Sea Level Change (mm)");
 
-    const line = d3.line()
-        .x(d => xScale(d.date))
-        .y(d => yScale(d.value));
-
-    const seaLevelLine = d3.line()
-        .x(d => xScale(d.date))
-        .y(d => seaLevelYScale(d.value));
-
+    // Add paths (with visibility set to visible initially)
     svg.append("path")
         .datum(timeSeriesDataGlobal)
         .attr("class", "line")
-        .attr("d", line)
+        .attr("d", d3.line()
+            .x(d => xScale(d.date))
+            .y(d => yScale(d.value))
+        )
         .style("fill", "none")
         .style("stroke", "#3498db")
-        .style("stroke-width", 2);
+        .style("stroke-width", 2)
+        .style("opacity", 0); // Start hidden for animation
 
     svg.append("path")
         .datum(seaLevelDataGlobal)
         .attr("class", "sea-level-line")
-        .attr("d", seaLevelLine)
+        .attr("d", d3.line()
+            .x(d => xScale(d.date))
+            .y(d => seaLevelYScale(d.value))
+        )
         .style("fill", "none")
         .style("stroke", "#c0392b")
-        .style("stroke-width", 2.5);
+        .style("stroke-width", 2.5)
+        .style("opacity", 0); // Start hidden for animation
 
     addLegend();
 
@@ -217,6 +274,10 @@ function render() {
         svg.select('.hover-point').style('opacity', 0);
         svg.select('.sea-level-hover-point').style('opacity', 0);
     });
+
+    if (animationTriggered) {
+        animatePathDrawing(svg);
+    }
 
     // Place the current marker at the live slider position
     updateSliderLine();
