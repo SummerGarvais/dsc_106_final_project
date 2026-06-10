@@ -28,17 +28,32 @@ const precContainer = document.getElementById('prec-container');
 let width = precContainer.offsetWidth;
 let height = precContainer.offsetHeight;
 
-// Stops as RGB triples
-const PREC_HIGH = [8, 69, 148];
-const PREC_MID = [254, 217, 118];
-const PREC_LOW = [255, 255, 255];
-// Writes the interpolated color straight into an ImageData buffer 
-function writePrecRGB(d, o, precValue, minPrecip, maxPrecip) {
-    const t = Math.max(0, Math.min(1, (precValue - minPrecip) / (maxPrecip - minPrecip)));
-    let a, b, tt;
-    if (t <= 0.5) { a = PREC_HIGH; b = PREC_MID; tt = t * 2; }
-    else { a = PREC_MID; b = PREC_LOW; tt = (t - 0.5) * 2; }
-    d[o] = (a[0] + (b[0] - a[0]) * tt) | 0;
+// ── Fixed global color scale (kg m⁻² s⁻¹) ──────────────────────────────────
+// Anchored to the CMIP6 CESM2 dataset range so every decade/month uses the
+// same mapping and frames are visually comparable.
+//   0           → light blue   (no rain / dry)
+//   ~3.3 mm/day → yellow       (moderate)
+//   ~6.7 mm/day → orange       (heavy)
+//   ≥10  mm/day → deep red     (extreme, ~99th‑percentile tropical)
+const SECONDS_PER_DAY = 86400;
+const GLOBAL_MIN_PREC = 0;
+const GLOBAL_MAX_PREC = 36 / SECONDS_PER_DAY;
+
+// Four-stop ramp: light-blue → yellow → orange → deep red
+const PREC_STOPS = [
+    [8, 69, 148],  // 0 %   – light blue  (dry)
+    [255, 235,  80],  // 33%   – yellow       (moderate)
+    [255, 140,   0],  // 67%   – orange       (heavy)
+    [200,  20,  20],  // 100%  – deep red     (extreme)
+];
+
+function writePrecRGB(d, o, precValue) {
+    const t   = Math.max(0, Math.min(1, (precValue - GLOBAL_MIN_PREC) / (GLOBAL_MAX_PREC - GLOBAL_MIN_PREC)));
+    const seg = Math.min(2, Math.floor(t * 3));
+    const tt  = t * 3 - seg;
+    const a   = PREC_STOPS[seg];
+    const b   = PREC_STOPS[seg + 1];
+    d[o]     = (a[0] + (b[0] - a[0]) * tt) | 0;
     d[o + 1] = (a[1] + (b[1] - a[1]) * tt) | 0;
     d[o + 2] = (a[2] + (b[2] - a[2]) * tt) | 0;
     d[o + 3] = 255;
@@ -192,21 +207,7 @@ function paintFrame(values, year, month, units, opts = {}) {
         return a + (b - a) * f;
     };
 
-    // Interpolated data range for the color scale
-    let minPrecip = Infinity, maxPrecip = -Infinity;
-    for (let j = 0; j < ny; j++) {
-        const aRow = values[j];
-        const bRow = B ? B[j] : null;
-        for (let i = 0; i < nx; i++) {
-            const v = bRow ? interp(aRow[i], bRow[i]) : aRow[i];
-            if (v !== null && !isNaN(v)) {
-                if (v < minPrecip) minPrecip = v;
-                if (v > maxPrecip) maxPrecip = v;
-            }
-        }
-    }
-
-    // Rasterize into the offscreen buffer
+    // Rasterize into the offscreen buffer using the fixed global scale
     ensureOffscreen(nx, ny);
     const d = offImg.data;
     for (let py = 0; py < ny; py++) {
@@ -216,7 +217,7 @@ function paintFrame(values, year, month, units, opts = {}) {
             const value = bRow ? interp(aRow[px], bRow[px]) : aRow[px];
             const o = (py * nx + px) * 4;
             if (value !== null && !isNaN(value)) {
-                writePrecRGB(d, o, value, minPrecip, maxPrecip);
+                writePrecRGB(d, o, value);
             } else {
                 d[o] = 240; d[o + 1] = 240; d[o + 2] = 240; d[o + 3] = 255;
             }
@@ -231,7 +232,6 @@ function paintFrame(values, year, month, units, opts = {}) {
     drawAnnotations(ctx, year, month);
     currentFrame = { values, year, month, units, b: B, f };
     updateRegionStats(values, B, f);
-    updateLegend(minPrecip, maxPrecip);
     drawMeanChart();
     scheduleSeriesRefresh();
 }
@@ -397,17 +397,17 @@ function buildRegionPanel() {
         <div class="legend">
             <span class="legend-label">Rainfall rate (mm/day)</span>
             <span class="ramp">
-                <span id="prec-leg-min">—</span>
-                <span class="bar" style="background:linear-gradient(to right,#084594,#fed976,#ffffff)"></span>
-                <span id="prec-leg-max">—</span>
+                <span>0</span>
+                <span class="bar" style="background:linear-gradient(to right,#084594,#ffeb50,#ff8c00,#c81414)"></span>
+                <span>36+</span>
             </span>
+            <span style="font-size:0.62rem;color:var(--muted);white-space:nowrap;">12 · 24 · 36 mm/day</span>
         </div>
         <div id="prec-mean-chart" class="prec-mean-chart"></div>`;
     document.getElementById('prec-reset-btn')?.addEventListener('click', resetViewport);
 }
 
 // Convert precipitation in m/s to mm/day and format for display
-const SECONDS_PER_DAY = 86400;
 function fmtMmPerDay(v) {
     if (!isFinite(v)) return '—';
     const mm = v * SECONDS_PER_DAY;
@@ -415,12 +415,6 @@ function fmtMmPerDay(v) {
     return `${mm.toFixed(mm < 10 ? 1 : 0)}`;
 }
 
-function updateLegend(min, max) {
-    const lo = document.getElementById('prec-leg-min');
-    const hi = document.getElementById('prec-leg-max');
-    if (lo) lo.textContent = fmtMmPerDay(min);
-    if (hi) hi.textContent = fmtMmPerDay(max);
-}
 
 function valueAt(values, bValues, f, px, py) {
     const ny = values.length;

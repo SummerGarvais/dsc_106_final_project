@@ -7,10 +7,31 @@ const MONTH_NAMES = ['', 'January', 'February', 'March', 'April', 'May', 'June',
 
 let currentData = null;
 let colorScale = null;
+let baseline1850 = null;   // cached per-month 1850 baseline
+
+// Fetch (or return cached) the 1850 baseline for a given month
+async function ensureBaseline(month) {
+    const cached = getCached('hum', 1850, month);
+    if (cached) { baseline1850 = cached; return; }
+    try {
+        const res = await fetch(urlFor('hum', 1850, month));
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setCached('hum', 1850, month, data);
+        baseline1850 = data;
+    } catch (e) {
+        console.error('Failed to load 1850 humidity baseline:', e);
+        baseline1850 = null;
+    }
+}
 
 const humContainer = document.getElementById('hum-container');
 let width = humContainer.offsetWidth;
 let height = humContainer.offsetHeight;
+
+// Split-slider state
+let splitX = 0.5;        // 0–1, fraction of canvas width
+let isDragging = false;
 
 const colors = [
     '#084594', '#1f64af', '#367ebd', '#60b2e9', '#99d6f9', '#f0f8ff',
@@ -57,6 +78,15 @@ function initializeHumCanvas() {
 
     resizeCanvas(canvas);
 
+    // Split-slider drag
+    canvas.addEventListener('mousedown',   onSplitMouseDown);
+    canvas.addEventListener('mousemove',   onSplitMouseMove);
+    canvas.addEventListener('mouseup',     onSplitMouseUp);
+    canvas.addEventListener('mouseleave',  onSplitMouseUp);
+    canvas.addEventListener('touchstart',  onSplitTouchStart, { passive: true });
+    canvas.addEventListener('touchmove',   onSplitTouchMove,  { passive: false });
+    canvas.addEventListener('touchend',    onSplitMouseUp);
+
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseleave', () => {
         const tooltip = document.querySelector("#hum-tooltip");
@@ -79,6 +109,8 @@ export async function loadNewHumData() {
     const year = getCurrentYear();
     const month = getCurrentMonth();
 
+    await ensureBaseline(month);
+
     const cached = getCached('hum', year, month);
     if (cached) {
         currentData = cached;
@@ -98,9 +130,9 @@ export async function loadNewHumData() {
         const canvas = document.getElementById('hum-canvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#f0f0f0';
+            ctx.fillStyle = '#0f1d2a';
             ctx.fillRect(0, 0, width, height);
-            ctx.fillStyle = '#ff0000';
+            ctx.fillStyle = '#e9eef4';
             ctx.font = '16px Arial';
             ctx.fillText(`Failed to load data for ${year}, ${month}`, width / 2 - 150, height / 2);
         }
@@ -110,6 +142,12 @@ export async function loadNewHumData() {
 export function renderHumInterpolated(yA, mA, yB, mB, f) {
     const cv = document.getElementById('hum-canvas');
     if (cv && !canvasVisible(cv)) return;
+
+    // Keep baseline in sync with the displayed month
+    const displayMonth = f < 0.5 ? mA : mB;
+    if (!baseline1850 || getCached('hum', 1850, displayMonth) !== baseline1850) {
+        ensureBaseline(displayMonth);
+    }
 
     const a = getCached('hum', yA, mA);
     if (!a) { prefetch('hum', yA, mA); return; }
@@ -121,37 +159,58 @@ export function renderHumInterpolated(yA, mA, yB, mB, f) {
     paintFrame(a.data, label.y, label.m, a.units, { skipIfHidden: true, b: (b && f > 0) ? b.data : null, f });
 }
 
-// 11 flux levels (dry → wet) as RGB, plus land, for direct ImageData writes
-// Now: blue (dry, value=0) → yellow (humid, value=0.02)
-const HUM_RGB = [
-    [139, 30, 30],   // 0.0180+  desaturated angry red (most humid)
-    [160, 60, 60],   // ~0.0162  muted dark red
-    [180, 70, 70],   // ~0.0144  muted red
-    [200, 85, 75],   // ~0.0126  muted red-orange
-    [210, 110, 70],  // ~0.0108  muted orange
-    [200, 140, 80],  // ~0.0090  muted orange-brown (mid-point)
-    [170, 160, 90],  // ~0.0072  muted yellow-brown
-    [140, 170, 110], // ~0.0054  muted olive/green
-    [100, 160, 140], // ~0.0036  muted teal
-    [70, 120, 170],  // ~0.0018  muted light blue
-    [50, 70, 140]    // 0.0000  deep muted blue (driest)
+// ── Color scales ─────────────────────────────────────────────────────────────
+// Absolute scale (used on the left / 1850 side): dry blue → wet red
+const HUM_ABS_STOPS = [
+    [50,  70, 140],   // 0.000  deep blue  (driest)
+    [70, 120, 170],   // 0.004
+    [100,160, 140],   // 0.008  teal
+    [140,170, 110],   // 0.012  olive
+    [200,140,  80],   // 0.016  orange-brown
+    [139, 30,  30],   // 0.020  deep red   (wettest)
 ];
-const HUM_LAND = [224, 224, 224];
+const ABS_MAX = 20;
 
-function HUMRGB(value) {
-    // Map value range 0 to 0.02 across the 11 levels
-    if (value >= 0.019) return HUM_RGB[0];   // 0.018 - 0.02
-    if (value >= 0.018) return HUM_RGB[1];   // 0.016 - 0.018
-    if (value >= 0.017) return HUM_RGB[2];   // 0.014 - 0.016
-    if (value >= 0.015) return HUM_RGB[3];   // 0.012 - 0.014
-    if (value >= 0.013) return HUM_RGB[4];   // 0.010 - 0.012
-    if (value >= 0.011) return HUM_RGB[5];   // 0.008 - 0.010
-    if (value >= 0.009) return HUM_RGB[6];   // 0.006 - 0.008
-    if (value >= 0.006) return HUM_RGB[7];   // 0.004 - 0.006
-    if (value >= 0.004) return HUM_RGB[8];   // 0.002 - 0.004
-    if (value >= 0.002) return HUM_RGB[9];   // 0.001 - 0.002
-    return HUM_RGB[10];                       // 0.000 - 0.001 (driest)
+function humAbsRGB(v) {
+    const t = Math.max(0, Math.min(1, (v * 1000) / ABS_MAX))
+    const seg = Math.min(HUM_ABS_STOPS.length - 2, Math.floor(t * (HUM_ABS_STOPS.length - 1)));
+    const tt  = t * (HUM_ABS_STOPS.length - 1) - seg;
+    const a   = HUM_ABS_STOPS[seg];
+    const b   = HUM_ABS_STOPS[seg + 1];
+    return [
+        (a[0] + (b[0] - a[0]) * tt) | 0,
+        (a[1] + (b[1] - a[1]) * tt) | 0,
+        (a[2] + (b[2] - a[2]) * tt) | 0,
+    ];
 }
+
+// Diverging scale (used on the right / current-year side):
+//   negative diff → blue (drier than 1850)
+//   zero          → light grey
+//   positive diff → red  (wetter than 1850)
+const DIFF_MAX = 0.015;   // ±0.004 kg/kg covers ~95th-percentile changes
+
+function humDiffRGB(diff) {
+    const t = Math.max(-1, Math.min(1, diff / DIFF_MAX));
+    if (t < 0) {
+        // Blue side
+        const s = -t;
+        return [
+            (220 + (30  - 220) * s) | 0,
+            (220 + (80  - 220) * s) | 0,
+            (220 + (200 - 220) * s) | 0,
+        ];
+    } else {
+        // Red side
+        return [
+            (220 + (200 - 220) * t) | 0,
+            (220 + (40  - 220) * t) | 0,
+            (220 + (40  - 220) * t) | 0,
+        ];
+    }
+}
+
+const HUM_LAND = [40, 50, 60];
 
 let offCanvas = null, offCtx = null, offImg = null, offW = 0, offH = 0;
 function ensureOffscreen(nx, ny) {
@@ -176,28 +235,44 @@ function paintFrame(values, year, month, units, opts = {}) {
     const ctx = canvas.getContext('2d');
     const ny = values.length;
     const nx = values[0].length;
+    const B  = opts.b || null;
+    const f  = opts.f || 0;
 
-    const B = opts.b || null;
-    const f = opts.f || 0;
+    const baseData = baseline1850?.data || null;
+    const splitPx  = Math.round(splitX * nx);   // split position in data-grid columns
 
     ensureOffscreen(nx, ny);
     const d = offImg.data;
+
     for (let py = 0; py < ny; py++) {
-        const aRow = values[ny - py - 1];
-        const bRow = B ? B[ny - py - 1] : null;
+        const aRow   = values[ny - py - 1];
+        const bRow   = B ? B[ny - py - 1] : null;
+        const baseRow = baseData ? baseData[ny - py - 1] : null;
+
         for (let px = 0; px < nx; px++) {
-            const ai = px;
-            let value = aRow[ai];
+            let value = aRow[px];
             if (bRow) {
-                const bv = bRow[ai];
+                const bv   = bRow[px];
                 const aBad = value === null || isNaN(value);
-                const bBad = bv === null || isNaN(bv);
-                if (aBad && bBad) value = NaN;
-                else if (aBad) value = bv;
-                else if (!bBad) value = value + (bv - value) * f;
+                const bBad = bv    === null || isNaN(bv);
+                if (aBad && bBad)   value = NaN;
+                else if (aBad)      value = bv;
+                else if (!bBad)     value = value + (bv - value) * f;
             }
+
             const o = (py * nx + px) * 4;
-            const c = (value !== null && !isNaN(value)) ? HUMRGB(value) : HUM_LAND;
+            let c;
+
+            if (value === null || isNaN(value)) {
+                c = HUM_LAND;
+            } else if (px < splitPx) {
+                // LEFT side — always show 1850 absolute humidity
+                const baseVal = baseRow ? baseRow[px] : null;
+                c = (baseVal !== null && !isNaN(baseVal)) ? humAbsRGB(baseVal) : HUM_LAND;
+            } else {
+                 c = humAbsRGB(value);
+            }
+
             d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
         }
     }
@@ -206,32 +281,145 @@ function paintFrame(values, year, month, units, opts = {}) {
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(offCanvas, 0, 0, width, height);
 
+    drawSplitLine(ctx, year);
     drawAnnotations(ctx, year, month);
+}
+
+// Draw the draggable divider line + handle
+function drawSplitLine(ctx, year) {
+    const x = splitX * width;
+
+    // Vertical line
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+
+    // Circular handle at mid-height
+    const hy = height / 2;
+    const r  = 14;
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.beginPath();
+    ctx.arc(x, hy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Arrow glyphs inside handle
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.font = `bold ${r}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⇔', x, hy);
+
+    // Side labels
+    const labelSize = Math.max(10, Math.min(13, width / 40));
+    ctx.font = `500 ${labelSize}px system-ui, sans-serif`;
+    ctx.textBaseline = 'top';
+
+    // Left label — always 1850
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText('1850 (baseline)', 8, 32);
+
+    // Right label — current year or "1850" if at baseline
+    ctx.textAlign = 'right';
+    const rightLabel = `${year}`;
+    ctx.fillText(rightLabel, width - 8, 32);
+
+    ctx.restore();
 }
 
 function drawAnnotations(ctx, year, month) {
     const monthName = MONTH_NAMES[month] || month;
     const titleSize = Math.max(11, Math.min(16, width / 28));
+    ctx.save();
     ctx.font = `500 ${titleSize}px system-ui, sans-serif`;
-    ctx.fillStyle = 'rgba(26,26,24,0.75)';
+    const titleText = `Specific Humidity · ${monthName} ${year}`;
+    const tw = ctx.measureText(titleText).width;
+    const pad = 5, bx = width / 2 - tw / 2 - pad, by = 8;
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.roundRect(bx, by, tw + pad * 2, titleSize + 6, 4);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`Specific Humidity · ${monthName} ${year}`, width / 2, 20);
+    ctx.fillText(titleText, width / 2, by + (titleSize + 6) / 2);
+    ctx.restore();
 }
 
-// Static legend with numeric flux endpoints
+// Static legend — two scales side by side
 function buildLegend() {
     const div = document.getElementById('hum-overall-stats');
     if (!div) return;
     div.className = 'viz-stats';
     div.innerHTML = `<div class="legend">
-        <span class="legend-label">Near-Surface Specific Humidity</span>
         <span class="ramp">
-            <span>Dry 0.00</span>
-            <span class="bar" style="background:linear-gradient(to right,#3a5c8c,#6498c4,#a6c7c7,#d6d4aa,#e8b87a,#aa4c3a,#8b3a2a)"></span>
-            <span>0.02 Wet</span>
+            <span>0 g/kg</span>
+            <span class="bar" style="background:linear-gradient(to right,#32467c,#467898,#64a08c,#8caa6e,#c88c50,#8b1e1e)"></span>
+            <span>20 g/kg</span>
         </span>
     </div>`;
+}
+
+// ── Split-slider drag handlers ─────────────────────────────────────────────
+function splitFractionFromEvent(e, canvas) {
+    const rect = canvas.getBoundingClientRect();
+    return Math.max(0.02, Math.min(0.98, (e.clientX - rect.left) / rect.width));
+}
+
+function onSplitMouseDown(e) {
+    const canvas = document.getElementById('hum-canvas');
+    if (!canvas) return;
+    const x = (e.clientX - canvas.getBoundingClientRect().left) / canvas.getBoundingClientRect().width;
+    if (Math.abs(x - splitX) < 0.06) {   // within ~6% of the handle
+        isDragging = true;
+        canvas.style.cursor = 'ew-resize';
+    }
+}
+
+function onSplitMouseMove(e) {
+    const canvas = document.getElementById('hum-canvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+
+    // Update cursor hint even when not dragging
+    canvas.style.cursor = Math.abs(x - splitX) < 0.06 ? 'ew-resize' : 'default';
+
+    if (!isDragging) return;
+    splitX = Math.max(0.02, Math.min(0.98, x));
+    if (currentData) paintFrame(currentData.data, getCurrentYear(), getCurrentMonth(), currentData.units);
+}
+
+function onSplitMouseUp() {
+    isDragging = false;
+    const canvas = document.getElementById('hum-canvas');
+    if (canvas) canvas.style.cursor = 'default';
+}
+
+function onSplitTouchStart(e) {
+    const canvas = document.getElementById('hum-canvas');
+    if (!canvas || !e.touches[0]) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches[0].clientX - rect.left) / rect.width;
+    if (Math.abs(x - splitX) < 0.08) isDragging = true;
+}
+
+function onSplitTouchMove(e) {
+    if (!isDragging || !e.touches[0]) return;
+    e.preventDefault();
+    const canvas = document.getElementById('hum-canvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    splitX = Math.max(0.02, Math.min(0.98, (e.touches[0].clientX - rect.left) / rect.width));
+    if (currentData) paintFrame(currentData.data, getCurrentYear(), getCurrentMonth(), currentData.units);
 }
 
 function handleMouseMove(event) {
@@ -250,17 +438,20 @@ function handleMouseMove(event) {
 
     const nx = humData[0].length;
     const ny = humData.length;
-    const i = Math.floor(mouseX / rect.width * nx);
-    const j = Math.floor(mouseY / rect.height * ny);
+    const i  = Math.floor(mouseX / rect.width  * nx);
+    const j  = Math.floor(mouseY / rect.height * ny);
 
     if (i >= 0 && i < nx && j >= 0 && j < ny) {
-        const hum = humData[ny - j - 1][i];
-        updateToolTip(event, hum);
-        updatePointStats(i, j, hum);
+        const hum      = humData[ny - j - 1][i];
+        const baseRow  = baseline1850?.data?.[ny - j - 1];
+        const baseVal  = baseRow ? baseRow[i] : null;
+        const onLeft   = (mouseX / rect.width) < splitX;
+        updateToolTip(event, hum, baseVal, onLeft, getCurrentYear());
+        updatePointStats(i, j, hum, baseVal, onLeft, getCurrentYear());
     }
 }
 
-function updateToolTip(event, hum) {
+function updateToolTip(event, hum, baseVal, onLeft, year) {
     let tooltip = document.querySelector("#hum-tooltip");
     if (!tooltip) {
         tooltip = document.createElement('div');
@@ -269,23 +460,45 @@ function updateToolTip(event, hum) {
         document.body.prepend(tooltip);
     }
     tooltip.style.visibility = 'visible';
-    if (hum !== null && !isNaN(hum)) {
-        tooltip.innerHTML = `💦 ${hum.toFixed(4)}`;
+
+    if (onLeft) {
+        // Left side always shows 1850 absolute
+        tooltip.innerHTML = baseVal !== null && !isNaN(baseVal)
+            `💧 1850 baseline: ${(baseVal * 1000).toFixed(2)} g/kg`
+            `💧 ${(hum * 1000).toFixed(2)} g/kg`
+    } else if (year === 1850 || baseVal === null || isNaN(baseVal)) {
+        tooltip.innerHTML = hum !== null && !isNaN(hum)
+            ? `💧 ${(hum * 1000).toFixed(2)} g/kg`
+            : `🌍 No data`;
     } else {
-        tooltip.innerHTML = `🌊 No Data`;
+        tooltip.innerHTML = hum !== null && !isNaN(hum)
+        ? `💧 ${(hum * 1000).toFixed(2)} g/kg`
+        : `🌍 No data`;
     }
+
     tooltip.style.left = event.pageX + 'px';
-    tooltip.style.top = event.pageY + 'px';
+    tooltip.style.top  = event.pageY + 'px';
 }
 
-function updatePointStats(i, j, hum) {
+function updatePointStats(i, j, hum, baseVal, onLeft, year) {
     const pointStatsDiv = document.getElementById('hum-point-stats');
     if (!pointStatsDiv) return;
-    const val = hum;
+
+    let valStr;
+    if (onLeft) {
+        valStr = baseVal !== null && !isNaN(baseVal) ? `${baseVal.toFixed(4)} kg/kg (1850)` : 'N/A';
+    } else if (year === 1850 || baseVal === null || isNaN(baseVal)) {
+        valStr = hum !== null && !isNaN(hum) ? `${hum.toFixed(4)} kg/kg` : 'N/A';
+    } else {
+        tooltip.innerHTML = hum !== null && !isNaN(hum)
+        ? `💧 ${hum.toFixed(4)} kg/kg`
+        : `🌍 No data`;
+    }
+
     pointStatsDiv.innerHTML = `
         📍 <strong>Location:</strong> (${i}, ${j}) |
-        <strong>Humidity:</strong> ${val.toFixed(4)}<br>
-        <span style="font-size: 12px; color: #666;">Hover over map for values | Click year buttons to change time</span>
+        <strong>Humidity:</strong> ${valStr}<br>
+        <span style="font-size: 12px; color: #666;">Drag the centre divider to compare 1850 vs ${year}</span>
     `;
 }
 
