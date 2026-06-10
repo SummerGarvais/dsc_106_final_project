@@ -365,6 +365,7 @@ function buildLegend() {
             <span class="bar" style="background:linear-gradient(to right,#32467c,#467898,#64a08c,#8caa6e,#c88c50,#8b1e1e)"></span>
             <span>20 g/kg</span>
         </span>
+        <p>Specific Humidity measures the grams of water vapor per kg of air<p>
     </div>`;
 }
 
